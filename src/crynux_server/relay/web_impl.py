@@ -382,6 +382,15 @@ class WebRelay(Relay):
         content = resp.json()
         balance = content["data"]
         return Web3.to_wei(balance, "wei")
+    
+    async def get_staking_amount(self) -> int:
+        resp = await self.client.get(
+            f"/v1/staking/{self.node_address}",
+        )
+        resp = _process_resp(resp, "getStakingAmount")
+        content = resp.json()
+        staking_amount = content["data"]
+        return Web3.to_wei(staking_amount, "wei")
 
     async def transfer(self, amount: int, to_addr: str):
         input = {"from": self.node_address, "value": str(amount), "to": to_addr}

@@ -115,6 +115,9 @@ class Relay(ABC):
     async def get_balance(self, address: Optional[str] = None) -> int: ...
 
     @abstractmethod
+    async def get_staking_amount(self) -> int: ...
+
+    @abstractmethod
     async def transfer(self, amount: int, to_addr: str): ...
 
     @abstractmethod
