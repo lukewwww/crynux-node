@@ -77,9 +77,10 @@ class CrynuxRunner(object):
 
             _logger.info(f"Serving WebUI from: {os.path.abspath(self.config.web_dist)}")
             self._server = Server(
-                base_model_dir=self.config.task_config.hf_cache_dir,
-                lora_model_dir=self.config.task_config.external_cache_dir,
+                hf_model_dir=self.config.task_config.hf_cache_dir,
+                external_model_dir=self.config.task_config.external_cache_dir,
                 log_dir=self.config.log.dir,
+                temp_dir=self.config.task_config.output_dir,
                 web_dist=self.config.web_dist,
             )
             set_server(self._server)

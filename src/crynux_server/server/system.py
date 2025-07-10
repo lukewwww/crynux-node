@@ -20,9 +20,10 @@ _system_info = SystemInfo()
 
 
 async def update_system_info(
-    base_model_dir: str,
-    lora_model_dir: str,
+    hf_model_dir: str,
+    external_model_dir: str,
     log_dir: str,
+    temp_dir: str,
 ):
     try:
         with fail_after(5):
@@ -48,9 +49,10 @@ async def update_system_info(
     try:
         with fail_after(10):
             _system_info.disk = await utils.get_disk_info(
-                base_model_dir=base_model_dir,
-                lora_model_dir=lora_model_dir,
-                log_dir=log_dir
+                hf_model_dir=hf_model_dir,
+                external_model_dir=external_model_dir,
+                log_dir=log_dir,
+                temp_dir=temp_dir,
             )
     except TimeoutError:
         _logger.error("cannot get disk info within 10 seconds")

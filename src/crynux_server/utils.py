@@ -207,42 +207,33 @@ async def get_cpu_info() -> CpuInfo:
 
 
 class DiskInfo(BaseModel):
-    base_models: int = 0
-    lora_models: int = 0
+    hf_models: int = 0
+    external_models: int = 0
     logs: int = 0
+    temp_files: int = 0
 
 
 async def get_disk_info(
-    base_model_dir: str,
-    lora_model_dir: str,
+    hf_model_dir: str,
+    external_model_dir: str,
     log_dir: str,
+    temp_dir: str,
 ) -> DiskInfo:
-    info = DiskInfo()
-    path = Path(base_model_dir)
-    if await path.exists():
-        size = 0
-        async for f in path.rglob("*"):
-            if await f.is_file():
-                size += (await f.stat()).st_size
-        info.base_models = size // (2**30)
-
-    path = Path(lora_model_dir)
-    if await path.exists():
-        size = 0
-        async for f in path.rglob("*"):
-            if await f.is_file():
-                size += (await f.stat()).st_size
-        info.lora_models = size // (2**20)
-
-    path = Path(log_dir)
-    if await path.exists():
-        size = 0
-        async for f in path.rglob("*"):
-            if await f.is_file():
-                size += (await f.stat()).st_size
-        info.logs += size // 1024
-
-    return info
+    key_dirs = {
+        "hf_models": hf_model_dir,
+        "external_models": external_model_dir,
+        "logs": log_dir,
+        "temp_files": temp_dir,
+    }
+    result = {}
+    for key, path in key_dirs.items():
+        if await Path(path).exists():
+            size = 0
+            async for f in Path(path).rglob("*"):
+                if await f.is_file():
+                    size += (await f.stat()).st_size
+            result[key] = size // 1024
+    return DiskInfo(**result)
 
 
 def get_address_from_privkey(privkey: str):
