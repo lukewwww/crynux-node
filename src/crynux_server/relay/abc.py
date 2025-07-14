@@ -84,7 +84,7 @@ class Relay(ABC):
 
     @abstractmethod
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
+        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ): ...
 
     @abstractmethod

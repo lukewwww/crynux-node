@@ -6,6 +6,7 @@ from anyio import CancelScope, fail_after, get_cancelled_exc_class, sleep
 from web3 import Web3
 
 from crynux_server import models
+from crynux_server.config import get_staking_amount
 from crynux_server.contracts import Contracts, TxOption
 from crynux_server.download_model_cache import DownloadModelCache
 from crynux_server.relay.abc import Relay
@@ -141,9 +142,9 @@ class NodeStateManager(object):
                 break
 
             elif status == models.ChainNodeStatus.QUIT:
-                node_amount = Web3.to_wei("400.01", "ether")
+                staking_amount = Web3.to_wei(get_staking_amount(), "ether")
                 balance = await self.relay.get_balance()
-                if balance < node_amount:
+                if balance < staking_amount:
                     raise ValueError("Node token balance is not enough to join")
                 download_models = await self.download_model_cache.load_all()
                 model_ids = [model.model.to_model_id() for model in download_models]
@@ -152,6 +153,7 @@ class NodeStateManager(object):
                     gpu_vram=gpu_vram,
                     version=".".join(str(v) for v in version),
                     model_ids=model_ids,
+                    staking_amount=staking_amount,
                 )
                 # update tx state to avoid the web user controlling node status by api
                 # it's the same in try_stop method
@@ -200,9 +202,9 @@ class NodeStateManager(object):
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
 
-            node_amount = Web3.to_wei(400, "ether")
+            staking_amount = Web3.to_wei(get_staking_amount(), "ether")
             balance = await self.relay.get_balance()
-            if balance < node_amount:
+            if balance < staking_amount:
                 raise ValueError("Node token balance is not enough to join.")
 
             download_models = await self.download_model_cache.load_all()
@@ -212,6 +214,7 @@ class NodeStateManager(object):
                 gpu_vram=gpu_vram,
                 model_ids=model_ids,
                 version=".".join(str(v) for v in version),
+                staking_amount=staking_amount,
             )
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 

@@ -13,7 +13,7 @@ from tenacity import (AsyncRetrying, before_sleep_log, stop_after_attempt,
 from web3 import Web3
 
 from crynux_server import models
-from crynux_server.config import Config, wait_privkey
+from crynux_server.config import Config, wait_privkey, get_staking_amount
 from crynux_server.contracts import Contracts, set_contracts
 from crynux_server.relay import Relay, WebRelay, set_relay
 from crynux_server.task import (DbDownloadTaskStateCache,
@@ -506,7 +506,7 @@ class NodeManager(object):
             )
 
     async def _can_join_network(self) -> bool:
-        node_amount = Web3.to_wei("400.01", "ether")
+        node_amount = Web3.to_wei(get_staking_amount(), "ether")
 
         assert self._relay is not None
         async for attemp in AsyncRetrying(

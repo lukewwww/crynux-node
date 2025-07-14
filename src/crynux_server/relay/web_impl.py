@@ -282,14 +282,16 @@ class WebRelay(Relay):
         return NodeInfo.model_validate(data)
 
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
+        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ):
+        staking = str(Web3.to_wei(staking_amount, "ether"))
         input = {
             "address": self.node_address,
             "gpu_name": gpu_name,
             "gpu_vram": gpu_vram,
             "model_ids": model_ids,
             "version": version,
+            "staking": staking,
         }
         timestamp, signature = self.signer.sign(input)
         resp = await self.client.post(
@@ -299,6 +301,7 @@ class WebRelay(Relay):
                 "gpu_vram": gpu_vram,
                 "model_ids": model_ids,
                 "version": version,
+                "staking": staking,
                 "timestamp": timestamp,
                 "signature": signature,
             },
