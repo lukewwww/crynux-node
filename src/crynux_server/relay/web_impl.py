@@ -281,10 +281,6 @@ class WebRelay(Relay):
         data = content["data"]
         return NodeInfo.model_validate(data)
 
-    async def node_get_node_status(self) -> ChainNodeStatus:
-        node_info = await self.node_get_node_info()
-        return node_info.status
-
     async def node_join(
         self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
     ):

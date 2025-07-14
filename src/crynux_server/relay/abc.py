@@ -83,9 +83,6 @@ class Relay(ABC):
     async def node_get_node_info(self) -> NodeInfo: ...
 
     @abstractmethod
-    async def node_get_node_status(self) -> ChainNodeStatus: ...
-
-    @abstractmethod
     async def node_join(
         self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
     ): ...

@@ -30,7 +30,7 @@ from crynux_server.worker_manager import (TaskCancelled, TaskDownloadError,
 from crynux_server.download_model_cache import DownloadModelCache, DbDownloadModelCache, set_download_model_cache
 
 from .state_cache import (DbNodeStateCache, DbTxStateCache, ManagerStateCache,
-                          StateCache, set_manager_state_cache)
+                          StateCache, set_manager_state_cache, DbNodeScoreStateCache)
 from .state_manager import NodeStateManager, set_node_state_manager
 
 _logger = logging.getLogger(__name__)
@@ -130,6 +130,7 @@ class NodeManager(object):
         download_state_cache_cls: Type[DownloadTaskStateCache] = DbDownloadTaskStateCache,
         node_state_cache_cls: Type[StateCache[models.NodeState]] = DbNodeStateCache,
         tx_state_cache_cls: Type[StateCache[models.TxState]] = DbTxStateCache,
+        node_score_state_cache_cls: Type[StateCache[models.NodeScoreState]] = DbNodeScoreStateCache,
         download_model_cache_cls: Type[DownloadModelCache] = DbDownloadModelCache,
         manager_state_cache: Optional[ManagerStateCache] = None,
         privkey: Optional[str] = None,
@@ -156,6 +157,7 @@ class NodeManager(object):
             manager_state_cache = ManagerStateCache(
                 node_state_cache_cls=node_state_cache_cls,
                 tx_state_cache_cls=tx_state_cache_cls,
+                node_score_state_cache_cls=node_score_state_cache_cls,
             )
             set_manager_state_cache(manager_state_cache)
         self.state_cache = manager_state_cache
@@ -514,7 +516,8 @@ class NodeManager(object):
         ):
             with attemp:
                 try:
-                    status = await self._relay.node_get_node_status()
+                    node_info = await self._relay.node_get_node_info()
+                    status = node_info.status
                     if status in [
                         models.ChainNodeStatus.AVAILABLE,
                         models.ChainNodeStatus.BUSY,

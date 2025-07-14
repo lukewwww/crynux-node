@@ -14,3 +14,11 @@ class NodeState(Base, BaseMixin):
     )
     message: Mapped[str] = mapped_column(default="", index=False, nullable=False)
     init_message: Mapped[str] = mapped_column(default="", index=False, nullable=False)
+
+
+class NodeScoreState(Base, BaseMixin):
+    __tablename__ = "node_score_states"
+
+    qos_score: Mapped[float] = mapped_column(default=0, index=False, nullable=False)
+    staking_score: Mapped[float] = mapped_column(default=0, index=False, nullable=False)
+    prob_weight: Mapped[float] = mapped_column(default=0, index=False, nullable=False)
