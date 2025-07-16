@@ -1072,7 +1072,7 @@ const copyText = async (text) => {
             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
             <!-- Place this tag where you want the button to render. -->
             <github-button
-                href="https://github.com/crynux-ai/crynux-node"
+                href="https://github.com/crynux-network/crynux-node"
                 data-color-scheme="no-preference: light; light: light; dark: light;"
                 data-show-count="true" aria-label="Star Crynux Node on GitHub"
                 :style="{'position': 'relative', 'top': '4px'}"
