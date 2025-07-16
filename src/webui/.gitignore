@@ -26,3 +26,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+.yarn/cache
+.yarn/install-state.gz
+.yarn/unplugged
