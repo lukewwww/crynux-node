@@ -13,6 +13,7 @@ import EditAccount from './edit-account.vue'
 import GithubButton from 'vue-github-button'
 
 import SystemAPI from '../api/v1/system'
+import SettingsAPI from '../api/v1/settings'
 import NodeAPI from '../api/v1/node'
 import TaskAPI from '../api/v1/task'
 import AccountAPI from '../api/v1/account'
@@ -23,12 +24,12 @@ import { useSystemStore } from '@/stores/system'
 const systemStore = useSystemStore()
 
 const appVersion = APP_VERSION
-const runnerVersion = "3.0.0"
 
 const accountAPI = new AccountAPI()
 const nodeAPI = new NodeAPI()
 const systemAPI = new SystemAPI()
 const taskAPI = new TaskAPI()
+const settingsAPI = new SettingsAPI()
 
 const accountEditor = ref(null)
 const showTestTokenModal = ref(false)
@@ -68,7 +69,8 @@ const nodeStatus = reactive({
 
 const accountStatus = reactive({
     address: '',
-    balance: 0
+    balance: 0,
+    staking: 0
 })
 
 const taskStatus = reactive({
@@ -78,19 +80,23 @@ const taskStatus = reactive({
 })
 
 const settings = reactive({
-    stakingAmount: 400
+    staking_amount: 400
 })
 
-const handleSettingsOk = () => {
-    logger.info('Save settings', settings)
-    systemStore.showSettingsModal = false
-}
+const runnerVersion = ref('')
+
+const nodeScores = reactive({
+    staking: 0,
+    qos: 0,
+    prob_weight: 0
+})
 
 let apiContinuousErrorCount = reactive({
     'account': 0,
     'node': 0,
     'system': 0,
-    'task': 0
+    'task': 0,
+    'settings': 0
 })
 
 const apiErrorHandler = (apiName) => {
@@ -191,7 +197,7 @@ const accountStaked = computed(() => {
     if (accountStatus.address === '') {
         return '0'
     } else {
-        return toEtherValue(BigInt(400e18))
+        return toEtherValue(accountStatus.staking)
     }
 })
 
@@ -220,6 +226,38 @@ onBeforeUnmount(() => {
     uiUpdateInterval = null
 })
 
+const handleSettingsOk = async () => {
+    if (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) {
+        try {
+            logger.info('Save settings', settings)
+            await settingsAPI.updateSettings(settings)
+            apiContinuousErrorCount['settings'] = 0
+            Modal.success({
+                title: 'Settings saved',
+                content: 'Settings saved successfully. Please restart the node to apply the new settings.',
+                onOk: () => {
+                    return
+                }
+            })
+        } catch (e) {
+            logger.error("Updating settings failed:")
+            logger.error(e)
+        } finally {
+            systemStore.showSettingsModal = false
+        }
+    } else {
+        systemStore.showSettingsModal = false
+        Modal.error({
+            title: 'Node is running',
+            content: 'Please stop the node first before changing the settings.',
+            onOk: () => {
+                return
+            },
+        })
+    }
+}
+
+
 const updateUI = async () => {
     uiUpdateCurrentTicket = Date.now()
 
@@ -241,6 +279,20 @@ const updateUI = async () => {
         await updateSystemInfo(uiUpdateCurrentTicket)
     } catch (e) {
         logger.error("Updating system info failed:")
+        logger.error(e)
+    }
+
+    try {
+        await updateRunnerVersion(uiUpdateCurrentTicket)
+    } catch (e) {
+        logger.error("Updating runner version failed:")
+        logger.error(e)
+    }
+
+    try {
+        await updateNodeScores(uiUpdateCurrentTicket)
+    } catch (e) {
+        logger.error("Updating node scores failed:")
         logger.error(e)
     }
 }
@@ -309,6 +361,24 @@ const updateTaskStats = async (ticket) => {
 
     if (ticket === uiUpdateCurrentTicket) {
         Object.assign(taskStatus, taskResp)
+    }
+}
+
+const updateRunnerVersion = async (ticket) => {
+    const runnerVersionResp = await nodeAPI.getRunnerVersion()
+    apiContinuousErrorCount['node'] = 0
+
+    if (ticket === uiUpdateCurrentTicket) {
+        runnerVersion.value = runnerVersionResp.version
+    }
+}
+
+const updateNodeScores = async (ticket) => {
+    const nodeScoresResp = await nodeAPI.getNodeScores()
+    apiContinuousErrorCount['node'] = 0
+
+    if (ticket === uiUpdateCurrentTicket) {
+        Object.assign(nodeScores, nodeScoresResp)
     }
 }
 
@@ -697,7 +767,7 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="Staking">
                             <template #formatter>
-                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                <span class="score-value">{{ (nodeScores.staking * 100).toFixed(2) }}</span
                                 ><span class="score-percent">%</span>
                             </template>
                         </a-statistic>
@@ -705,7 +775,7 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="QoS">
                             <template #formatter>
-                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                <span class="score-value">{{ (nodeScores.qos * 100).toFixed(2) }}</span
                                 ><span class="score-percent">%</span>
                             </template>
                         </a-statistic>
@@ -713,7 +783,7 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="Prob Weight">
                             <template #formatter>
-                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                <span class="score-value">{{ (nodeScores.prob_weight * 100).toFixed(2) }}</span
                                 ><span class="score-percent">%</span>
                             </template>
                         </a-statistic>
@@ -758,7 +828,7 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="CNX Balance" class="wallet-value" >
                             <template #formatter>
-                                -
+                                <a-typography-text>{{ accountBalance }}</a-typography-text>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -1048,7 +1118,7 @@ const copyText = async (text) => {
     >
         <a-form layout="vertical">
             <a-form-item label="Staking Amount (Test CNX)">
-                <a-input-number v-model:value="settings.stakingAmount" :min="400" style="width: 100%"/>
+                <a-input-number v-model:value="settings.staking_amount" :min="400" style="width: 100%"/>
                 <a-typography-text type="secondary">Minimum staking amount is 400 Test CNX.</a-typography-text>
             </a-form-item>
         </a-form>

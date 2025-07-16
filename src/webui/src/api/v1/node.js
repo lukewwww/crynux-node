@@ -26,6 +26,14 @@ class NodeAPI extends BaseAPI {
     return this.getHttpClient().get('/node')
   }
 
+  getRunnerVersion() {
+    return this.getHttpClient().get('/node/runner/version')
+  }
+
+  getNodeScores() {
+    return this.getHttpClient().get('/node/scores')
+  }
+
   sendNodeAction(action) {
     return this.getHttpClient().post('/node', {
       action: action
