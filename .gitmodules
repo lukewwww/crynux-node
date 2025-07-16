@@ -1,9 +1,9 @@
 [submodule "stable-diffusion-task"]
 	path = stable-diffusion-task
-	url = https://github.com/crynux-ai/stable-diffusion-task.git
+	url = https://github.com/crynux-network/stable-diffusion-task.git
 [submodule "gpt-task"]
 	path = gpt-task
-	url = https://github.com/crynux-ai/gpt-task.git
+	url = https://github.com/crynux-network/gpt-task.git
 [submodule "crynux-worker"]
 	path = crynux-worker
-	url = https://github.com/crynux-ai/crynux-worker.git
+	url = https://github.com/crynux-network/crynux-worker.git
