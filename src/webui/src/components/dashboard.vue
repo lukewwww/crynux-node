@@ -5,7 +5,8 @@ import {
     LogoutOutlined,
     PlayCircleOutlined,
     ExclamationCircleOutlined,
-    CopyOutlined
+    CopyOutlined,
+    QuestionCircleOutlined
 } from '@ant-design/icons-vue'
 import { Grid, Modal } from 'ant-design-vue'
 import EditAccount from './edit-account.vue'
@@ -17,8 +18,12 @@ import TaskAPI from '../api/v1/task'
 import AccountAPI from '../api/v1/account'
 import config from '../config.json'
 import logger from '../log/log'
+import { useSystemStore } from '@/stores/system'
+
+const systemStore = useSystemStore()
 
 const appVersion = APP_VERSION
+const runnerVersion = "3.0.0"
 
 const accountAPI = new AccountAPI()
 const nodeAPI = new NodeAPI()
@@ -71,6 +76,15 @@ const taskStatus = reactive({
     num_today: 0,
     num_total: 0
 })
+
+const settings = reactive({
+    stakingAmount: 400
+})
+
+const handleSettingsOk = () => {
+    logger.info('Save settings', settings)
+    systemStore.showSettingsModal = false
+}
 
 let apiContinuousErrorCount = reactive({
     'account': 0,
@@ -477,12 +491,12 @@ const copyText = async (text) => {
     </a-row>
     <a-row :gutter="[16, 16]">
         <a-col
-            :xs="{ span: 24, offset: 0, order: 1 }"
-            :sm="{ span: 12, offset: 0, order: 1 }"
-            :md="{ span: 12, offset: 0, order: 1 }"
-            :lg="{ span: 5, offset: 0, order: 1 }"
-            :xl="{ span: 5, offset: 1, order: 1 }"
-            :xxl="{ span: 4, offset: 3, order: 1 }"
+            :xs="{ span: 24, order: 1 }"
+            :sm="{ span: 8, order: 1 }"
+            :md="{ span: 8, order: 1 }"
+            :lg="{ span: 8, order: 1 }"
+            :xl="{ span: 7, offset: 1, order: 1 }"
+            :xxl="{ span: 6, offset: 3, order: 1 }"
         >
             <a-card title="Node Status" :bordered="false" style="height: 100%; opacity: 0.9">
                 <a-row>
@@ -608,83 +622,12 @@ const copyText = async (text) => {
         </a-col>
 
         <a-col
-            :xs="{ span: 24, order: 3 }"
-            :sm="{ span: 24, order: 3 }"
-            :md="{ span: 24, order: 3 }"
-            :lg="{ span: 12, order: 2 }"
-            :xl="{ span: 11, order: 2 }"
-            :xxl="{ span: 9, order: 2 }"
-        >
-            <a-card title="Account" :bordered="false" style="height: 100%; opacity: 0.9">
-                <template #extra>
-                    <edit-account
-                        ref="accountEditor"
-                        :account-status="accountStatus"
-                        @private-key-updated="privateKeyUpdated"
-                    ></edit-account>
-                </template>
-                <a-row>
-                    <a-col :span="8">
-                        <a-tooltip>
-                            <template #title>{{ accountStatus.address }}</template>
-                            <a-statistic title="Address" class="wallet-address">
-                                <template #formatter>
-                                    <span>{{ shortAddress }}</span>
-                                    <a-button @click="copyText(accountStatus.address)">
-                                        <template #icon>
-                                            <CopyOutlined />
-                                        </template>
-                                    </a-button>
-                                </template>
-                            </a-statistic>
-                        </a-tooltip>
-                    </a-col>
-                    <a-col :span="8">
-                        <a-statistic title="Balance (Test CNX)" class="wallet-value">
-                            <template #formatter>
-                                <a-typography-link
-                                    v-if="accountStatus.address !== ''"
-                                    :href="config.block_explorer + '/address/' + accountStatus.address"
-                                    target="_blank">{{ toEtherValue(accountStatus.balance) }}</a-typography-link>
-                                <a-typography-text v-else>{{ accountBalance }} <span v-if="accountStaked !== '0'">({{ accountStaked }} staked)</span></a-typography-text>
-                            </template>
-                        </a-statistic>
-                    </a-col>
-                    <a-col :span="8">
-                        <a-statistic title="Action" class="wallet-value">
-                            <template #formatter>
-                                <a-space>
-                                    <a-button
-                                        type="default"
-                                        size="small"
-                                        :disabled="accountStatus.address === ''"
-                                        @click="showTestTokenModal = true"
-                                    >
-                                        Deposit
-                                    </a-button>
-                                    <a-button
-                                        type="default"
-                                        size="small"
-                                        :disabled="accountStatus.address === ''"
-                                        @click="showWithdrawModal = true"
-                                    >
-                                        Withdraw
-                                    </a-button>
-                                </a-space>
-                            </template>
-                        </a-statistic>
-                    </a-col>
-                </a-row>
-            </a-card>
-        </a-col>
-
-        <a-col
             :xs="{ span: 24, order: 2 }"
-            :sm="{ span: 12, order: 2 }"
-            :md="{ span: 12, order: 2 }"
-            :lg="{ span: 7, order: 3 }"
-            :xl="{ span: 6, order: 3 }"
-            :xxl="{ span: 5, order: 3 }"
+            :sm="{ span: 8, order: 2 }"
+            :md="{ span: 8, order: 2 }"
+            :lg="{ span: 8, order: 2 }"
+            :xl="{ span: 7, order: 2 }"
+            :xxl="{ span: 6, order: 2 }"
         >
             <a-card title="Task Execution" :bordered="false" style="height: 100%; opacity: 0.9">
                 <a-row>
@@ -731,6 +674,140 @@ const copyText = async (text) => {
                     </a-col>
                     <a-col :span="8">
                         <a-statistic title="Total" :precision="0" :value="taskStatus.num_total"></a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+
+        <a-col
+            :xs="{ span: 24, order: 3 }"
+            :sm="{ span: 8, order: 3 }"
+            :md="{ span: 8, order: 3 }"
+            :lg="{ span: 8, order: 3 }"
+            :xl="{ span: 8, order: 3 }"
+            :xxl="{ span: 6, order: 3 }"
+        >
+            <a-card title="Node Scores" :bordered="false" style="height: 100%; opacity: 0.9">
+                <template #extra>
+                    <a href="https://docs.crynux.io/system-design/task-dispatching#node-selection-probability" target="_blank">
+                        <a-button type="text" :icon="h(QuestionCircleOutlined)" />
+                    </a>
+                </template>
+                <a-row>
+                    <a-col :span="8">
+                        <a-statistic title="Staking">
+                            <template #formatter>
+                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                ><span class="score-percent">%</span>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="QoS">
+                            <template #formatter>
+                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                ><span class="score-percent">%</span>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="Prob Weight">
+                            <template #formatter>
+                                <span class="score-value">{{ (0.1425 * 100).toFixed(2) }}</span
+                                ><span class="score-percent">%</span>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+    </a-row>
+    <a-row :gutter="[16, 16]" style="margin-top: 16px">
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 14 }"
+            :md="{ span: 14 }"
+            :lg="{ span: 14 }"
+            :xl="{ span: 14, offset: 1 }"
+            :xxl="{ span: 10, offset: 3 }"
+        >
+            <a-card title="Node Wallet" :bordered="false" style="height: 100%; opacity: 0.9">
+                <template #extra>
+                    <edit-account
+                        ref="accountEditor"
+                        :account-status="accountStatus"
+                        @private-key-updated="privateKeyUpdated"
+                    ></edit-account>
+                </template>
+                <a-row>
+                    <a-col :span="8">
+                        <a-tooltip>
+                            <template #title>{{ accountStatus.address }}</template>
+                            <a-statistic title="Address" class="wallet-address">
+                                <template #formatter>
+                                    <span>{{ shortAddress }}</span>
+                                    <a-button @click="copyText(accountStatus.address)">
+                                        <template #icon>
+                                            <CopyOutlined />
+                                        </template>
+                                    </a-button>
+                                </template>
+                            </a-statistic>
+                        </a-tooltip>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="CNX Balance" class="wallet-value" >
+                            <template #formatter>
+                                -
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="CNX Staked" :value="accountStaked" class="wallet-value" />
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 10 }"
+            :md="{ span: 10 }"
+            :lg="{ span: 10 }"
+            :xl="{ span: 8 }"
+            :xxl="{ span: 8 }"
+        >
+            <a-card title="Relay Account" :bordered="false" style="height: 100%; opacity: 0.9">
+                <a-row>
+                    <a-col :span="12">
+                        <a-statistic title="CNX Balance" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountBalance }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-statistic title="Action" class="wallet-value">
+                            <template #formatter>
+                                <a-space>
+                                    <a-button
+                                        type="default"
+                                        size="small"
+                                        :disabled="accountStatus.address === ''"
+                                        @click="showTestTokenModal = true"
+                                    >
+                                        Deposit
+                                    </a-button>
+                                    <a-button
+                                        type="default"
+                                        size="small"
+                                        :disabled="accountStatus.address === ''"
+                                        @click="showWithdrawModal = true"
+                                    >
+                                        Withdraw
+                                    </a-button>
+                                </a-space>
+                            </template>
+                        </a-statistic>
                     </a-col>
                 </a-row>
             </a-card>
@@ -865,7 +942,7 @@ const copyText = async (text) => {
                             :value="systemInfo.disk.base_models"
                             :value-style="{ 'font-size': '14px' }"
                         >
-                            <template #title><span style="font-size: 12px">Base Models</span></template>
+                            <template #title><span style="font-size: 12px">HF Models</span></template>
                             <template #suffix>GB</template>
                         </a-statistic>
                     </a-col>
@@ -874,7 +951,7 @@ const copyText = async (text) => {
                             :value="systemInfo.disk.lora_models"
                             :value-style="{ 'font-size': '14px' }"
                         >
-                            <template #title><span style="font-size: 12px">Lora Models</span></template>
+                            <template #title><span style="font-size: 12px">External Models</span></template>
                             <template #suffix>MB</template>
                         </a-statistic>
                     </a-col>
@@ -883,6 +960,12 @@ const copyText = async (text) => {
                     <a-col :span="12">
                         <a-statistic :value="systemInfo.disk.logs" :value-style="{ 'font-size': '14px' }">
                             <template #title><span style="font-size: 12px">Logs</span></template>
+                            <template #suffix>KB</template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-statistic :value="0" :value-style="{ 'font-size': '14px' }">
+                            <template #title><span style="font-size: 12px">Temp Files</span></template>
                             <template #suffix>KB</template>
                         </a-statistic>
                     </a-col>
@@ -913,7 +996,9 @@ const copyText = async (text) => {
             </a-typography-link
             >
             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-text :style="{'color':'white'}">v{{ appVersion }}</a-typography-text>
+            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion }}</a-typography-text>
             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
             <!-- Place this tag where you want the button to render. -->
             <github-button
@@ -955,6 +1040,20 @@ const copyText = async (text) => {
         <p>Please wait for the mainnet launch to withdraw your tokens.</p>
     </a-modal>
 
+    <a-modal
+        v-model:visible="systemStore.showSettingsModal"
+        title="Settings"
+        @ok="handleSettingsOk"
+        @cancel="systemStore.showSettingsModal = false"
+    >
+        <a-form layout="vertical">
+            <a-form-item label="Staking Amount (Test CNX)">
+                <a-input-number v-model:value="settings.stakingAmount" :min="400" style="width: 100%"/>
+                <a-typography-text type="secondary">Minimum staking amount is 400 Test CNX.</a-typography-text>
+            </a-form-item>
+        </a-form>
+    </a-modal>
+
 </template>
 
 <style lang="stylus">
@@ -963,6 +1062,17 @@ const copyText = async (text) => {
     margin-right 0 !important
 </style>
 <style scoped lang="stylus">
+.score-value
+    font-size 24px
+    line-height 32px
+    color rgba(0, 0, 0, 0.85)
+
+.score-percent
+    font-size 14px
+    line-height 22px
+    color rgba(0, 0, 0, 0.45)
+    margin-left 4px
+
 .wallet-address span
     font-size 16px
 

@@ -3,7 +3,7 @@ import { RouterView } from 'vue-router'
 import V1Client from '@/api/v1/v1'
 import { Grid, message, Modal } from 'ant-design-vue'
 import { onBeforeUnmount, onMounted, ref, h, computed, createVNode } from 'vue'
-import { BulbOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue'
+import { BulbOutlined, ExclamationCircleOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { useSystemStore } from '@/stores/system'
 
 const [messageApi, contextHolder] = message.useMessage()
@@ -107,8 +107,12 @@ onBeforeUnmount(() => {
         <div id="content-scroll-wrapper">
             <div id="content-container" :class="screenClasses">
                 <div id="toolbar">
-                    <a-button size="large" type="text" :icon="h(BulbOutlined)" @click="toggleWaves" ghost
-                              :style="{'color': 'white'}" />
+                    <a-space>
+                        <a-button size="large" type="text" :icon="h(SettingOutlined)" @click="systemStore.showSettingsModal = true" ghost
+                                  :style="{'color': 'white'}" />
+                        <a-button size="large" type="text" :icon="h(BulbOutlined)" @click="toggleWaves" ghost
+                                  :style="{'color': 'white'}" />
+                    </a-space>
                 </div>
                 <context-holder />
                 <RouterView />
