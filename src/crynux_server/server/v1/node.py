@@ -97,7 +97,7 @@ class NodeScoresResponse(BaseModel):
     prob_weight: float
 
 
-@router.get("/node/scores", response_model=NodeScoresResponse)
+@router.get("/scores", response_model=NodeScoresResponse)
 async def get_node_scores(*, state_cache: ManagerStateCacheDep) -> NodeScoresResponse:
     node_score_state = await state_cache.get_node_score_state()
     return NodeScoresResponse(
