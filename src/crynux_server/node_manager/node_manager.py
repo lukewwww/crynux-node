@@ -320,9 +320,9 @@ class NodeManager(object):
             "under his legs, masterpiece, high resolution"
         )
         task_args = {
-            "version": "2.5.0",
+            "version": "3.0.0",
             "base_model": {
-                "name": "crynux-ai/stable-diffusion-v1-5",
+                "name": "crynux-network/stable-diffusion-v1-5",
                 "variant": "fp16",
             },
             "prompt": prompt,
@@ -343,7 +343,7 @@ class NodeManager(object):
                 task_id="initial_inference_task",
                 models=[
                     models.ModelConfig(
-                        id="crynux-ai/stable-diffusion-v1-5",
+                        id="crynux-network/stable-diffusion-v1-5",
                         type="base",
                         variant="fp16",
                     )
