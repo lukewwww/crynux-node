@@ -6,6 +6,7 @@ from anyio import CancelScope, fail_after, get_cancelled_exc_class, sleep
 from web3 import Web3
 
 from crynux_server import models
+from crynux_server.config import get_staking_amount
 from crynux_server.contracts import Contracts, TxOption
 from crynux_server.download_model_cache import DownloadModelCache
 from crynux_server.relay.abc import Relay
@@ -31,7 +32,8 @@ class NodeStateManager(object):
         self._cancel_scope: Optional[CancelScope] = None
 
     async def _get_node_status(self):
-        remote_status = await self.relay.node_get_node_status()
+        node_info = await self.relay.node_get_node_info()
+        remote_status = node_info.status
         local_status = models.convert_node_status(remote_status)
         return local_status
 
@@ -83,10 +85,18 @@ class NodeStateManager(object):
                 self._cancel_scope = scope
 
                 while True:
-                    local_status = await self._get_node_status()
+                    node_info = await self.relay.node_get_node_info()
+                    remote_status = node_info.status
+                    local_status = models.convert_node_status(remote_status)
                     current_status = (await self.state_cache.get_node_state()).status
                     if local_status != current_status:
                         await self.state_cache.set_node_state(local_status)
+                    node_score_state = models.NodeScoreState(
+                        qos_score=node_info.qos_score,
+                        staking_score=node_info.staking_score,
+                        prob_weight=node_info.prob_weight,
+                    )
+                    await self.state_cache.set_node_score_state(node_score_state)
                     await sleep(interval)
         finally:
             self._cancel_scope = None
@@ -118,7 +128,8 @@ class NodeStateManager(object):
     ):
         _logger.info("Trying to join the network automatically...")
         while True:
-            status = await self.relay.node_get_node_status()
+            node_info = await self.relay.node_get_node_info()
+            status = node_info.status
             if status in [
                 models.ChainNodeStatus.AVAILABLE,
                 models.ChainNodeStatus.BUSY,
@@ -131,9 +142,9 @@ class NodeStateManager(object):
                 break
 
             elif status == models.ChainNodeStatus.QUIT:
-                node_amount = Web3.to_wei("400.01", "ether")
+                staking_amount = Web3.to_wei(get_staking_amount(), "ether")
                 balance = await self.relay.get_balance()
-                if balance < node_amount:
+                if balance < staking_amount:
                     raise ValueError("Node token balance is not enough to join")
                 download_models = await self.download_model_cache.load_all()
                 model_ids = [model.model.to_model_id() for model in download_models]
@@ -142,6 +153,7 @@ class NodeStateManager(object):
                     gpu_vram=gpu_vram,
                     version=".".join(str(v) for v in version),
                     model_ids=model_ids,
+                    staking_amount=staking_amount,
                 )
                 # update tx state to avoid the web user controlling node status by api
                 # it's the same in try_stop method
@@ -154,7 +166,8 @@ class NodeStateManager(object):
             break
 
     async def try_stop(self, *, option: "Optional[TxOption]" = None):
-        status = await self.relay.node_get_node_status()
+        node_info = await self.relay.node_get_node_info()
+        status = node_info.status
         if status == models.ChainNodeStatus.AVAILABLE:
             await self.relay.node_quit()
 
@@ -189,9 +202,9 @@ class NodeStateManager(object):
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
 
-            node_amount = Web3.to_wei(400, "ether")
+            staking_amount = Web3.to_wei(get_staking_amount(), "ether")
             balance = await self.relay.get_balance()
-            if balance < node_amount:
+            if balance < staking_amount:
                 raise ValueError("Node token balance is not enough to join.")
 
             download_models = await self.download_model_cache.load_all()
@@ -201,6 +214,7 @@ class NodeStateManager(object):
                 gpu_vram=gpu_vram,
                 model_ids=model_ids,
                 version=".".join(str(v) for v in version),
+                staking_amount=staking_amount,
             )
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 

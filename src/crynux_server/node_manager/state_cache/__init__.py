@@ -3,7 +3,7 @@ from typing import Optional, Type
 from crynux_server import models
 
 from .abc import StateCache
-from .db_impl import DbNodeStateCache, DbTxStateCache
+from .db_impl import DbNodeStateCache, DbTxStateCache, DbNodeScoreStateCache
 from .memory_impl import MemoryNodeStateCache, MemoryTxStateCache
 
 __all__ = [
@@ -23,9 +23,11 @@ class ManagerStateCache(object):
         self,
         node_state_cache_cls: Type[StateCache[models.NodeState]] = DbNodeStateCache,
         tx_state_cache_cls: Type[StateCache[models.TxState]] = DbTxStateCache,
+        node_score_state_cache_cls: Type[StateCache[models.NodeScoreState]] = DbNodeScoreStateCache,
     ) -> None:
         self.node_state_cache = node_state_cache_cls()
         self.tx_state_cache = tx_state_cache_cls()
+        self.node_score_state_cache = node_score_state_cache_cls()
 
     async def get_node_state(self) -> models.NodeState:
         return await self.node_state_cache.get()
@@ -40,6 +42,12 @@ class ManagerStateCache(object):
 
     async def set_tx_state(self, status: models.TxStatus, error: str = ""):
         return await self.tx_state_cache.set(models.TxState(status=status, error=error))
+
+    async def get_node_score_state(self) -> models.NodeScoreState:
+        return await self.node_score_state_cache.get()
+
+    async def set_node_score_state(self, state: models.NodeScoreState):
+        return await self.node_score_state_cache.set(state)
 
 
 _default_state_cache: Optional[ManagerStateCache] = None

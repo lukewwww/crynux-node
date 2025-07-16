@@ -11,7 +11,7 @@
 
 [![](https://dcbadge.limes.pink/api/server/https://discord.gg/zmU9GRwU6f)](https://discord.gg/zmU9GRwU6f)
 [![X](https://img.shields.io/badge/@crynuxio-%23000000.svg?style=for-the-badge&logo=X&logoColor=white)](https://x.com/crynuxio)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/crynux-ai/crynux-node/release-all.yml?style=for-the-badge&logo=githubactions)](https://github.com/crynux-ai/crynux-node/releases)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/crynux-ai/crynux-node/release-all.yml?style=for-the-badge&logo=githubactions)](https://github.com/crynux-network/crynux-node/releases)
 [![Static Badge](https://img.shields.io/badge/Gitbook-Documentation-blue?style=for-the-badge&logo=gitbook)](https://docs.crynux.io)
 
 Start a Crynux Node to share the spared local GPU to others in exchange for tokens. Crynux Node will join the Crynux Network, receive the AI inference/training/fine-tuning tasks from the network, and execute them locally.
@@ -44,7 +44,7 @@ Make sure you have the following tools installed and accessible in the path
 ### Clone the project
 
 ```shell
-# git clone --recurse-submodules https://github.com/crynux-ai/crynux-node.git
+# git clone --recurse-submodules https://github.com/crynux-network/crynux-node.git
 ```
 
 Or if you are pulling the latest updates from a repo cloned earlier, use the following command:
@@ -223,7 +223,7 @@ and use the correct IP address.
 1. Clone the project
 
 ```shell
-# git clone --recurse-submodules https://github.com/crynux-ai/crynux-node.git
+# git clone --recurse-submodules https://github.com/crynux-network/crynux-node.git
 ```
 
 Or if you are pulling the latest updates from a repo cloned earlier, use the following command:
@@ -253,19 +253,19 @@ Or if you are pulling the latest updates from a repo cloned earlier, use the fol
 
 ## Build the binary package on Mac
 
-Please refer to the [README](https://github.com/crynux-ai/crynux-node/blob/main/build/macos/README.md) for the detailed instructions on building the MacOS binary package.
+Please refer to the [README](https://github.com/crynux-network/crynux-node/blob/main/build/macos/README.md) for the detailed instructions on building the MacOS binary package.
 
 
 ## Build the binary package on Windows
 
-Please refer to the [README](https://github.com/crynux-ai/crynux-node/blob/main/build/windows/README.md) for the detailed instructions on building the Windows binary package.
+Please refer to the [README](https://github.com/crynux-network/crynux-node/blob/main/build/windows/README.md) for the detailed instructions on building the Windows binary package.
 
 ## Run tests
 
 1. Clone the project
 
 ```shell
-# git clone https://github.com/crynux-ai/crynux-node.git
+# git clone https://github.com/crynux-network/crynux-node.git
 ```
 
 2. Go to the root folder of the project

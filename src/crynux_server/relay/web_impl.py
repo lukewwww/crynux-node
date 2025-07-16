@@ -281,12 +281,8 @@ class WebRelay(Relay):
         data = content["data"]
         return NodeInfo.model_validate(data)
 
-    async def node_get_node_status(self) -> ChainNodeStatus:
-        node_info = await self.node_get_node_info()
-        return node_info.status
-
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
+        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ):
         input = {
             "address": self.node_address,
@@ -294,6 +290,7 @@ class WebRelay(Relay):
             "gpu_vram": gpu_vram,
             "model_ids": model_ids,
             "version": version,
+            "staking": str(staking_amount),
         }
         timestamp, signature = self.signer.sign(input)
         resp = await self.client.post(
@@ -303,6 +300,7 @@ class WebRelay(Relay):
                 "gpu_vram": gpu_vram,
                 "model_ids": model_ids,
                 "version": version,
+                "staking": str(staking_amount),
                 "timestamp": timestamp,
                 "signature": signature,
             },
@@ -382,6 +380,15 @@ class WebRelay(Relay):
         content = resp.json()
         balance = content["data"]
         return Web3.to_wei(balance, "wei")
+    
+    async def get_staking_amount(self) -> int:
+        resp = await self.client.get(
+            f"/v1/staking/{self.node_address}",
+        )
+        resp = _process_resp(resp, "getStakingAmount")
+        content = resp.json()
+        staking_amount = content["data"]
+        return Web3.to_wei(staking_amount, "wei")
 
     async def transfer(self, amount: int, to_addr: str):
         input = {"from": self.node_address, "value": str(amount), "to": to_addr}

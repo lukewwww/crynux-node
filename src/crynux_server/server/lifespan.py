@@ -13,15 +13,17 @@ _logger = logging.getLogger(__name__)
 class Lifespan(object):
     def __init__(
         self,
-        base_model_dir: str,
-        lora_model_dir: str,
+        hf_model_dir: str,
+        external_model_dir: str,
         log_dir: str,
+        temp_dir: str,
         system_info_update_interval: int,
         account_info_update_interval: int,
     ) -> None:
-        self.base_model_dir = base_model_dir
-        self.lora_model_dir = lora_model_dir
+        self.hf_model_dir = hf_model_dir
+        self.external_model_dir = external_model_dir
         self.log_dir = log_dir
+        self.temp_dir = temp_dir
         self.system_info_update_interval = system_info_update_interval
         self.account_info_update_interval = account_info_update_interval
 
@@ -29,9 +31,10 @@ class Lifespan(object):
         while True:
             try:
                 await update_system_info(
-                    base_model_dir=self.base_model_dir,
-                    lora_model_dir=self.lora_model_dir,
+                    hf_model_dir=self.hf_model_dir,
+                    external_model_dir=self.external_model_dir,
                     log_dir=self.log_dir,
+                    temp_dir=self.temp_dir,
                 )
             except TimeoutError:
                 pass

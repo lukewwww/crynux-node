@@ -15,5 +15,16 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  }
+  },
+  server: {
+    port: 3000,
+    host: true,
+    open: true,
+    proxy: {
+      '/manager': {
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:7412',
+        changeOrigin: true,
+      }
+    }
+  },
 })

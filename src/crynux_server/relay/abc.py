@@ -83,11 +83,8 @@ class Relay(ABC):
     async def node_get_node_info(self) -> NodeInfo: ...
 
     @abstractmethod
-    async def node_get_node_status(self) -> ChainNodeStatus: ...
-
-    @abstractmethod
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str
+        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ): ...
 
     @abstractmethod
@@ -113,6 +110,9 @@ class Relay(ABC):
 
     @abstractmethod
     async def get_balance(self, address: Optional[str] = None) -> int: ...
+
+    @abstractmethod
+    async def get_staking_amount(self) -> int: ...
 
     @abstractmethod
     async def transfer(self, amount: int, to_addr: str): ...

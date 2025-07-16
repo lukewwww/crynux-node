@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from contextlib import contextmanager
 from functools import partial
 from typing import Any, Dict, List, Literal, Tuple, Type, TypedDict, Optional
@@ -26,6 +27,8 @@ __all__ = [
     "get_privkey",
     "TxOption",
     "get_default_tx_option",
+    "get_staking_amount",
+    "set_staking_amount",
 ]
 
 
@@ -243,6 +246,8 @@ class Config(BaseSettings):
 
     resource_dir: str = ""
 
+    staking_amount: int = 400
+
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",
         env_file=".env",
@@ -319,6 +324,31 @@ def get_privkey() -> str:
     return config.ethereum.privkey
 
 
+def get_staking_amount() -> int:
+    config = get_config()
+    return config.staking_amount
+
+
+def set_staking_amount(amount: int):
+    config = get_config()
+    config.staking_amount = amount
+
+    config_file = config_file_path()
+
+    with open(config_file, mode="r", encoding="utf-8") as f:
+        content = f.read()
+
+    pattern = re.compile(r"staking_amount: (\d+)")
+    match = pattern.search(content)
+    if match:
+        content = pattern.sub(f"staking_amount: {amount}", content)
+    else:
+        content += f"\nstaking_amount: {amount}"
+
+    with open(config_file, mode="w", encoding="utf-8") as f:
+        f.write(content)
+
+
 class TxOption(TypedDict, total=False):
     chainId: int
     gas: int
@@ -371,7 +401,7 @@ def get_requests_proxy_url(proxy: ProxyConfig | None) -> str | None:
         return proxy_str
     else:
         return None
-    
+
 
 @contextmanager
 def with_proxy(config: Config | None = None):

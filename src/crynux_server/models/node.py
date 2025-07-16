@@ -35,7 +35,9 @@ class NodeInfo(BaseModel):
     gpu_vram: int
     in_use_model_ids: List[str]
     model_ids: List[str]
-    qos_score: int
+    qos_score: float
+    staking_score: float
+    prob_weight: float
     status: ChainNodeStatus
     version: str
 
@@ -75,3 +77,9 @@ class NodeState(BaseModel):
     status: NodeStatus
     message: str = ""
     init_message: str = ""
+
+
+class NodeScoreState(BaseModel):
+    qos_score: float
+    staking_score: float
+    prob_weight: float

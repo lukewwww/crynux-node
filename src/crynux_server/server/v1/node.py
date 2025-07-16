@@ -1,13 +1,14 @@
 import math
 from typing import Literal
 
-from fastapi import APIRouter, Body, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
 from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from crynux_server import models, utils
 
-from ..depends import NodeStateManagerDep, ManagerStateCacheDep, WorkerManagerDep
+from ..depends import (ManagerStateCacheDep, NodeStateManagerDep,
+                       WorkerManagerDep)
 from .utils import CommonResponse
 
 router = APIRouter(prefix="/node")
@@ -19,6 +20,7 @@ class State(BaseModel):
     tx_status: models.TxStatus
     tx_error: str
     init_message: str = ""
+
 
 @router.get("", response_model=State)
 async def get_node_state(*, state_cache: ManagerStateCacheDep) -> State:
@@ -46,7 +48,7 @@ async def control_node(
     *,
     state_manager: NodeStateManagerDep,
     worker_manager: WorkerManagerDep,
-    background: BackgroundTasks
+    background: BackgroundTasks,
 ):
     if state_manager is None:
         raise HTTPException(400, detail="Private key has not been set.")
@@ -76,3 +78,30 @@ async def control_node(
     background.add_task(wait)
 
     return CommonResponse()
+
+
+class RunnerVersionResponse(BaseModel):
+    version: str
+
+
+@router.get("/runner/version", response_model=RunnerVersionResponse)
+async def get_runner_version(
+    *, worker_manager: WorkerManagerDep
+) -> RunnerVersionResponse:
+    return RunnerVersionResponse(version=worker_manager.version or "")
+
+
+class NodeScoresResponse(BaseModel):
+    staking: float
+    qos: float
+    prob_weight: float
+
+
+@router.get("/scores", response_model=NodeScoresResponse)
+async def get_node_scores(*, state_cache: ManagerStateCacheDep) -> NodeScoresResponse:
+    node_score_state = await state_cache.get_node_score_state()
+    return NodeScoresResponse(
+        staking=node_score_state.staking_score,
+        qos=node_score_state.qos_score,
+        prob_weight=node_score_state.prob_weight,
+    )
