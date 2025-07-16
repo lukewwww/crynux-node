@@ -12,17 +12,17 @@ router = APIRouter(prefix="/settings")
 
 
 class SettingsResponse(BaseModel):
-    num_staking: int
+    staking_amount: int
 
 
 @router.get("", response_model=SettingsResponse)
 async def get_settings():
     staking_amount = get_staking_amount()
-    return SettingsResponse(num_staking=staking_amount)
+    return SettingsResponse(staking_amount=staking_amount)
 
 
 class SetSettingsInput(BaseModel):
-    num_staking: int = Field(..., ge=1)
+    staking_amount: int = Field(..., ge=1)
 
 
 @router.post("", response_model=CommonResponse)
@@ -33,5 +33,5 @@ async def set_settings(input: SetSettingsInput, *, state_manager: ManagerStateCa
             status_code=400, detail="Node is not stopped or initializing"
         )
 
-    await to_thread.run_sync(set_staking_amount, input.num_staking)
+    await to_thread.run_sync(set_staking_amount, input.staking_amount)
     return CommonResponse(success=True)
