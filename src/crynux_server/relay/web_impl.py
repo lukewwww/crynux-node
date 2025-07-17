@@ -274,7 +274,7 @@ class WebRelay(Relay):
 
     async def node_get_node_info(self) -> NodeInfo:
         resp = await self.client.get(
-            f"/v1/node/{self.node_address}",
+            f"/v2/node/{self.node_address}",
         )
         resp = _process_resp(resp, "nodeGetNodeInfo")
         content = resp.json()
