@@ -261,32 +261,21 @@ onBeforeUnmount(() => {
 })
 
 const handleSettingsSave = async () => {
-    if (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) {
-        isSaving.value = true;
-        try {
-            logger.info('Save settings', editableSettings)
-            await settingsAPI.updateSettings(editableSettings)
-            apiContinuousErrorCount['settings'] = 0
-            Object.assign(settings, editableSettings)
-            showSuccessAlert.value = true
-            setTimeout(() => {
-                showSuccessAlert.value = false
-            }, 5000)
-        } catch (e) {
-            logger.error("Updating settings failed:")
-            logger.error(e)
-        } finally {
-            isSaving.value = false
-        }
-    } else {
-        systemStore.showSettingsModal = false
-        Modal.error({
-            title: 'Node is running',
-            content: 'Please stop the node first before changing the settings.',
-            onOk: () => {
-                return
-            },
-        })
+    isSaving.value = true;
+    try {
+        logger.info('Save settings', editableSettings)
+        await settingsAPI.updateSettings(editableSettings)
+        apiContinuousErrorCount['settings'] = 0
+        Object.assign(settings, editableSettings)
+        showSuccessAlert.value = true
+        setTimeout(() => {
+            showSuccessAlert.value = false
+        }, 5000)
+    } catch (e) {
+        logger.error("Updating settings failed:")
+        logger.error(e)
+    } finally {
+        isSaving.value = false
     }
 }
 
