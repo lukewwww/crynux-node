@@ -1,4 +1,4 @@
-FROM node:18-buster-slim as web-builder
+FROM node:18-buster as web-builder
 
 WORKDIR /app
 

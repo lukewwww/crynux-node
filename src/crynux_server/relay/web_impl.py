@@ -274,7 +274,7 @@ class WebRelay(Relay):
 
     async def node_get_node_info(self) -> NodeInfo:
         resp = await self.client.get(
-            f"/v1/node/{self.node_address}",
+            f"/v2/node/{self.node_address}",
         )
         resp = _process_resp(resp, "nodeGetNodeInfo")
         content = resp.json()
@@ -294,7 +294,7 @@ class WebRelay(Relay):
         }
         timestamp, signature = self.signer.sign(input)
         resp = await self.client.post(
-            f"/v1/node/{self.node_address}/join",
+            f"/v2/node/{self.node_address}/join",
             json={
                 "gpu_name": gpu_name,
                 "gpu_vram": gpu_vram,
