@@ -294,7 +294,7 @@ class WebRelay(Relay):
         }
         timestamp, signature = self.signer.sign(input)
         resp = await self.client.post(
-            f"/v1/node/{self.node_address}/join",
+            f"/v2/node/{self.node_address}/join",
             json={
                 "gpu_name": gpu_name,
                 "gpu_vram": gpu_vram,
