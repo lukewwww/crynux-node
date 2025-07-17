@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY src/webui /app/
 
+RUN apt update && apt install -y git && rm -rf /var/lib/apt/lists/*
+
 RUN yarn && yarn build
 
 FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 as base
