@@ -1,12 +1,13 @@
 <script setup>
-import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
     PauseCircleOutlined,
     LogoutOutlined,
     PlayCircleOutlined,
     ExclamationCircleOutlined,
     CopyOutlined,
-    QuestionCircleOutlined
+    QuestionCircleOutlined,
+    EditOutlined
 } from '@ant-design/icons-vue'
 import { Grid, Modal } from 'ant-design-vue'
 import EditAccount from './edit-account.vue'
@@ -22,6 +23,19 @@ import logger from '../log/log'
 import { useSystemStore } from '@/stores/system'
 
 const systemStore = useSystemStore()
+
+const showSuccessAlert = ref(false)
+const isSaving = ref(false)
+
+const isStakingAmountValid = computed(() => {
+    if (typeof editableSettings.staking_amount !== 'number') {
+        return false
+    }
+    if (!Number.isInteger(editableSettings.staking_amount)) {
+        return false
+    }
+    return editableSettings.staking_amount >= 400
+})
 
 const appVersion = APP_VERSION
 
@@ -83,6 +97,10 @@ const settings = reactive({
     staking_amount: 400
 })
 
+const editableSettings = reactive({
+    staking_amount: 400
+})
+
 const runnerVersion = ref('')
 
 const nodeScores = reactive({
@@ -136,6 +154,15 @@ const shortAddress = computed(() => {
             accountStatus.address.substring(accountStatus.address.length - 5)
         )
     }
+})
+
+const isNodeJoined = computed(() => {
+    return [
+        nodeAPI.NODE_STATUS_RUNNING,
+        nodeAPI.NODE_STATUS_PAUSED,
+        nodeAPI.NODE_STATUS_PENDING_PAUSE,
+        nodeAPI.NODE_STATUS_PENDING_STOP
+    ].includes(nodeStatus.status)
 })
 
 const toEtherValue = (bigNum) => {
@@ -221,29 +248,35 @@ onMounted(async () => {
     uiUpdateInterval = setInterval(updateUI, 5000)
 })
 
+watch(() => systemStore.showSettingsModal, (newValue) => {
+    if (newValue) {
+        Object.assign(editableSettings, settings);
+        showSuccessAlert.value = false
+    }
+})
+
 onBeforeUnmount(() => {
     clearInterval(uiUpdateInterval)
     uiUpdateInterval = null
 })
 
-const handleSettingsOk = async () => {
+const handleSettingsSave = async () => {
     if (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) {
+        isSaving.value = true;
         try {
-            logger.info('Save settings', settings)
-            await settingsAPI.updateSettings(settings)
+            logger.info('Save settings', editableSettings)
+            await settingsAPI.updateSettings(editableSettings)
             apiContinuousErrorCount['settings'] = 0
-            Modal.success({
-                title: 'Settings saved',
-                content: 'Settings saved successfully. Please restart the node to apply the new settings.',
-                onOk: () => {
-                    return
-                }
-            })
+            Object.assign(settings, editableSettings)
+            showSuccessAlert.value = true
+            setTimeout(() => {
+                showSuccessAlert.value = false
+            }, 5000)
         } catch (e) {
             logger.error("Updating settings failed:")
             logger.error(e)
         } finally {
-            systemStore.showSettingsModal = false
+            isSaving.value = false
         }
     } else {
         systemStore.showSettingsModal = false
@@ -257,9 +290,20 @@ const handleSettingsOk = async () => {
     }
 }
 
+const handleSettingsCancel = () => {
+    systemStore.showSettingsModal = false
+}
+
 
 const updateUI = async () => {
     uiUpdateCurrentTicket = Date.now()
+
+    try {
+        await updateSettings(uiUpdateCurrentTicket)
+    } catch (e) {
+        logger.error("Updating settings failed:")
+        logger.error(e)
+    }
 
     try {
         await updateTaskStats(uiUpdateCurrentTicket)
@@ -294,6 +338,15 @@ const updateUI = async () => {
     } catch (e) {
         logger.error("Updating node scores failed:")
         logger.error(e)
+    }
+}
+
+const updateSettings = async (ticket) => {
+    const settingsResp = await settingsAPI.getSettings()
+    apiContinuousErrorCount['settings'] = 0
+
+    if (ticket === uiUpdateCurrentTicket) {
+        Object.assign(settings, settingsResp)
     }
 }
 
@@ -421,7 +474,7 @@ const doSendNodeAction = async (action) => {
     isTxSending.value = true
     try {
         await nodeAPI.sendNodeAction(action)
-        await updateSystemInfo()
+        await updateUI()
     } finally {
         isTxSending.value = false
     }
@@ -672,6 +725,17 @@ const copyText = async (text) => {
                             </a-button
                             >
                         </div>
+                        <div style="margin-top: 8px; text-align: center" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                            <a-typography-text type="secondary">
+                                Staking: {{ settings.staking_amount }} CNX
+                            </a-typography-text>
+                            <a-button
+                                type="text"
+                                size="small"
+                                :icon="h(EditOutlined)"
+                                @click="systemStore.showSettingsModal = true"
+                            />
+                        </div>
                         <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED">
                             <a-button
                                 type="primary"
@@ -767,24 +831,39 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="Staking">
                             <template #formatter>
-                                <span class="score-value">{{ (nodeScores.staking * 100).toFixed(2) }}</span
-                                ><span class="score-percent">%</span>
+                                <template v-if="isNodeJoined">
+                                    <span class="score-value">{{ (nodeScores.staking * 100).toFixed(2) }}</span
+                                    ><span class="score-percent">%</span>
+                                </template>
+                                <template v-else>
+                                    <span class="score-value">-</span>
+                                </template>
                             </template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="8">
                         <a-statistic title="QoS">
                             <template #formatter>
-                                <span class="score-value">{{ (nodeScores.qos * 100).toFixed(2) }}</span
-                                ><span class="score-percent">%</span>
+                                <template v-if="isNodeJoined">
+                                    <span class="score-value">{{ (nodeScores.qos * 100).toFixed(2) }}</span
+                                    ><span class="score-percent">%</span>
+                                </template>
+                                <template v-else>
+                                    <span class="score-value">-</span>
+                                </template>
                             </template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="8">
                         <a-statistic title="Prob Weight">
                             <template #formatter>
-                                <span class="score-value">{{ (nodeScores.prob_weight * 100).toFixed(2) }}</span
-                                ><span class="score-percent">%</span>
+                                <template v-if="isNodeJoined">
+                                    <span class="score-value">{{ (nodeScores.prob_weight * 200).toFixed(2) }}</span
+                                    ><span class="score-percent">%</span>
+                                </template>
+                                <template v-else>
+                                    <span class="score-value">-</span>
+                                </template>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -828,12 +907,16 @@ const copyText = async (text) => {
                     <a-col :span="8">
                         <a-statistic title="CNX Balance" class="wallet-value" >
                             <template #formatter>
-                                <a-typography-text>{{ accountBalance }}</a-typography-text>
+                                <a-typography-text>-</a-typography-text>
                             </template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="8">
-                        <a-statistic title="CNX Staked" :value="accountStaked" class="wallet-value" />
+                        <a-statistic title="CNX Staked" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountStaked }}</a-typography-text>
+                            </template>
+                        </a-statistic>
                     </a-col>
                 </a-row>
             </a-card>
@@ -1113,13 +1196,27 @@ const copyText = async (text) => {
     <a-modal
         v-model:visible="systemStore.showSettingsModal"
         title="Settings"
-        @ok="handleSettingsOk"
-        @cancel="systemStore.showSettingsModal = false"
+        :mask-closable="false"
+        ok-text="Save"
+        :confirm-loading="isSaving"
+        :ok-button-props="{ disabled: !isStakingAmountValid }"
+        @ok="handleSettingsSave"
+        @cancel="handleSettingsCancel"
     >
+        <a-alert
+            v-if="showSuccessAlert"
+            message="Settings saved successfully. Please quit the network and join again to apply the settings."
+            type="success"
+            show-icon
+            style="margin-bottom: 24px;"
+        />
         <a-form layout="vertical">
-            <a-form-item label="Staking Amount (Test CNX)">
-                <a-input-number v-model:value="settings.staking_amount" :min="400" style="width: 100%"/>
-                <a-typography-text type="secondary">Minimum staking amount is 400 Test CNX.</a-typography-text>
+            <a-form-item
+                label="Staking Amount (Test CNX)"
+                :validate-status="isStakingAmountValid ? '' : 'error'"
+                :help="isStakingAmountValid ? 'Minimum staking amount is 400 Test CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
+            >
+                <a-input-number v-model:value="editableSettings.staking_amount" style="width: 100%"/>
             </a-form-item>
         </a-form>
     </a-modal>
