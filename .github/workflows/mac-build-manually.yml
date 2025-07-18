@@ -59,31 +59,8 @@ jobs:
             chmod +x build/set-config-files.sh
             ./build/set-config-files.sh ${{ inputs.blockchain }}
 
-      - name: Install the Apple certificate
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          # create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # import certificate from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-
-          # create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
       - name: Build
-        run: ./build/macos/build.sh -s "${{ secrets.APPLE_DEVELOPER_IDENTITY }}" -u "${{ secrets.APPLE_USER }}" -p "${{ secrets.APPLE_PASS }}" -t "${{ secrets.APPLE_TEAM_ID }}"
+        run: ./build/macos/build.sh
 
       - name:
         id: vars
@@ -94,12 +71,11 @@ jobs:
       - name: rename
         shell: bash
         run: |
-          mv build/crynux_node/dist/crynux-node-helium-v${{ env.RELEASE_VERSION }}-mac-arm64-signed.dmg build/crynux_node/dist/crynux-node-helium-${{ steps.vars.outputs.sha_short }}-mac-arm64-signed.dmg
+          mv build/crynux_node/dist/crynux-node-helium-v${{ env.RELEASE_VERSION }}-mac-arm64-unsigned.dmg build/crynux_node/dist/crynux-node-helium-${{ steps.vars.outputs.sha_short }}-mac-arm64-unsigned.dmg
 
       - name: Upload the artifact
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: mac-app
-          path: build/crynux_node/dist/crynux-node-helium-${{ steps.vars.outputs.sha_short }}-mac-arm64-signed.dmg
-
+          path: build/crynux_node/dist/crynux-node-helium-${{ steps.vars.outputs.sha_short }}-mac-arm64-unsigned.dmg

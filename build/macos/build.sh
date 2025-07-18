@@ -54,4 +54,8 @@ fi
 
 VERSION=2.5.3
 
-mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-signed.dmg" || exit 1
+if [ "$IDENTITY" ]; then
+  mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-signed.dmg" || exit 1
+else
+  mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-unsigned.dmg" || exit 1
+fi
