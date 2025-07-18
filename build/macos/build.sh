@@ -23,8 +23,11 @@ while getopts ":s:u:p:t:" opt; do
   esac
 done
 
+echo "Preparing the dist project and install the environments"
 ## Prepare the dist project and install the environments
 ./build/macos/prepare.sh -w ./build/crynux_node || exit 1
+
+echo "Preparing completed"
 
 ## Build the dist bundle
 cd ./build/crynux_node || exit 1
