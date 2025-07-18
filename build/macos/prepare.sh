@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+
 # Build package from source
 # Example call: bash build/macos/prepare.sh -w ~/crynux_app
 
@@ -58,24 +61,36 @@ fi
 function check_or_install {
   if ! [ -x "$(command -v $1)" ]
   then
-    echo "Error: $1 is not installed."
-    brew install "$2"
+    echo "$1 is not installed. Installing..."
+    brew install "$1"
   fi
 }
 
-check_or_install create-dmg create-dmg
+check_or_install create-dmg
 
 # 1. Prepare the WebUI dist
+
+echo "[Prepare] Building the WebUI..."
 
 mkdir "$WORK_DIR/webui"
 
 cd "$GIT_DIR/src/webui"
 
+corepack enable
 yarn --immutable && yarn build
+
+if [ ! -f "dist/index.html" ]; then
+  echo "Error: WebUI build failed, 'dist/index.html' not found." >&2
+  exit 1
+fi
+
 cp -R "$GIT_DIR/src/webui/dist" "$WORK_DIR/webui/dist"
 
+echo "[Prepare] WebUI build completed"
 
 # 2. Prepare the server
+echo "[Prepare] Preparing the server..."
+
 cd $WORK_DIR
 python3.10 -m venv venv
 export PATH="$WORK_DIR/venv/bin:${PATH}"
@@ -91,8 +106,11 @@ cp $GIT_DIR/go.mod go.mod
 cp $GIT_DIR/go.sum go.sum
 pip install -r requirements.txt && pip install .[app]
 
+echo "[Prepare] Server prepared"
 
 # 3. Prepare the worker
+echo "[Prepare] Preparing the worker..."
+
 cd $GIT_DIR
 git submodule update --init --recursive
 cd $WORK_DIR
@@ -103,30 +121,44 @@ python3.10 -m venv worker/venv
 source "$WORK_DIR/worker/venv/bin/activate"
 pip install pyinstaller==6.5.0
 
+echo "[Prepare] Preparing the stable-diffusion-task..."
+
 cp -R $GIT_DIR/stable-diffusion-task stable-diffusion-task
 cd stable-diffusion-task
 pip install -r requirements_macos.txt
 pip install .
 cd $WORK_DIR
 
+echo "[Prepare] Preparing the gpt-task..."
+
 cp -R $GIT_DIR/gpt-task gpt-task
 cd gpt-task
 pip install -r requirements_macos.txt
 pip install .
+
+echo "[Prepare] Preparing the crynux-worker..."
 
 cp -R $GIT_DIR/crynux-worker crynux-worker
 cd crynux-worker
 pip install -r requirements.txt
 pip install .
 
-pip show triton > /dev/null
-if [ $? -eq 0 ]; then
+echo "[Prepare] Worker prepared"
+
+if pip show triton > /dev/null 2>&1; then
     echo "Uninstalling triton..."
     pip uninstall triton -y
 fi
+
+echo "[Prepare] Triton checked"
+
+# 4. Prepare the data
+echo "Preparing the data..."
 
 cd $WORK_DIR
 
 cp -R $GIT_DIR/build/data .
 cp $GIT_DIR/build/macos/config.yml.example data/config/config.yml
 cp $GIT_DIR/build/macos/* .
+
+echo "Data prepared"

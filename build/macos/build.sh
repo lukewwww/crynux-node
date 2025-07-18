@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 while getopts ":s:u:p:t:" opt; do
   case $opt in
@@ -22,8 +23,11 @@ while getopts ":s:u:p:t:" opt; do
   esac
 done
 
+echo "Preparing the dist project and install the environments"
 ## Prepare the dist project and install the environments
 ./build/macos/prepare.sh -w ./build/crynux_node || exit 1
+
+echo "Preparing completed"
 
 ## Build the dist bundle
 cd ./build/crynux_node || exit 1
@@ -54,4 +58,8 @@ fi
 
 VERSION=2.5.3
 
-mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-signed.dmg" || exit 1
+if [ "$IDENTITY" ]; then
+  mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-signed.dmg" || exit 1
+else
+  mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-unsigned.dmg" || exit 1
+fi
