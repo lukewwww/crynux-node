@@ -14,7 +14,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-permissions:  
+permissions:
   actions: write
   packages: write
   contents: write
@@ -159,9 +159,9 @@ jobs:
         with:
           body_path: build/changelog-template.md
           files: |
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-dymension-mac-arm64-signed.dmg
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-near-mac-arm64-signed.dmg
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-kasplex-mac-arm64-signed.dmg
+            crynux-node-helium-v${{ env.RELEASE_VERSION }}-dymension-mac-arm64-unsigned.dmg
+            crynux-node-helium-v${{ env.RELEASE_VERSION }}-near-mac-arm64-unsigned.dmg
+            crynux-node-helium-v${{ env.RELEASE_VERSION }}-kasplex-mac-arm64-unsigned.dmg
     outputs:
       windows-download-link-dymension: ${{ env.WINDOWS_DOWNLOAD_LINK_DYMENSION }}
       windows-preview-link-dymension: ${{ env.WINDOWS_PREVIEW_LINK_DYMENSION }}
