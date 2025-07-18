@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+
 # Build package from source
 # Example call: bash build/macos/prepare.sh -w ~/crynux_app
 
@@ -71,7 +74,14 @@ mkdir "$WORK_DIR/webui"
 
 cd "$GIT_DIR/src/webui"
 
+corepack enable
 yarn --immutable && yarn build
+
+if [ ! -f "dist/index.html" ]; then
+  echo "Error: WebUI build failed, 'dist/index.html' not found." >&2
+  exit 1
+fi
+
 cp -R "$GIT_DIR/src/webui/dist" "$WORK_DIR/webui/dist"
 
 
