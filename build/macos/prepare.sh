@@ -70,7 +70,7 @@ check_or_install create-dmg
 
 # 1. Prepare the WebUI dist
 
-echo "Building the WebUI..."
+echo "[Prepare] Building the WebUI..."
 
 mkdir "$WORK_DIR/webui"
 
@@ -86,10 +86,10 @@ fi
 
 cp -R "$GIT_DIR/src/webui/dist" "$WORK_DIR/webui/dist"
 
-echo "WebUI build completed"
+echo "[Prepare] WebUI build completed"
 
 # 2. Prepare the server
-echo "Preparing the server..."
+echo "[Prepare] Preparing the server..."
 
 cd $WORK_DIR
 python3.10 -m venv venv
@@ -106,10 +106,10 @@ cp $GIT_DIR/go.mod go.mod
 cp $GIT_DIR/go.sum go.sum
 pip install -r requirements.txt && pip install .[app]
 
-echo "Server prepared"
+echo "[Prepare] Server prepared"
 
 # 3. Prepare the worker
-echo "Preparing the worker..."
+echo "[Prepare] Preparing the worker..."
 
 cd $GIT_DIR
 git submodule update --init --recursive
@@ -121,7 +121,7 @@ python3.10 -m venv worker/venv
 source "$WORK_DIR/worker/venv/bin/activate"
 pip install pyinstaller==6.5.0
 
-echo "Preparing the stable-diffusion-task..."
+echo "[Prepare] Preparing the stable-diffusion-task..."
 
 cp -R $GIT_DIR/stable-diffusion-task stable-diffusion-task
 cd stable-diffusion-task
@@ -129,27 +129,28 @@ pip install -r requirements_macos.txt
 pip install .
 cd $WORK_DIR
 
-echo "Preparing the gpt-task..."
+echo "[Prepare] Preparing the gpt-task..."
 
 cp -R $GIT_DIR/gpt-task gpt-task
 cd gpt-task
 pip install -r requirements_macos.txt
 pip install .
 
-echo "Preparing the crynux-worker..."
+echo "[Prepare] Preparing the crynux-worker..."
 
 cp -R $GIT_DIR/crynux-worker crynux-worker
 cd crynux-worker
 pip install -r requirements.txt
 pip install .
 
-pip show triton > /dev/null
-if [ $? -eq 0 ]; then
+echo "[Prepare] Worker prepared"
+
+if pip show triton > /dev/null 2>&1; then
     echo "Uninstalling triton..."
     pip uninstall triton -y
 fi
 
-echo "Worker prepared"
+echo "[Prepare] Triton checked"
 
 # 4. Prepare the data
 echo "Preparing the data..."
