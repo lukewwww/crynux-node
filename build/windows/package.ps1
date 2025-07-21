@@ -2,8 +2,18 @@
 # Generate a directory that contains the releasing app
 # Example call: .\build\windows\package.ps1
 
+$ErrorActionPreference = "Stop"
+
+function Check-ExitCode {
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Last command failed with exit code $LASTEXITCODE"
+        exit 1
+    }
+}
+
 ./venv/Scripts/Activate.ps1
 pyinstaller crynux.spec
+Check-ExitCode
 
 
 ./worker/venv/Scripts/Activate.ps1
@@ -16,6 +26,7 @@ if(Test-Path $TAR_FILE -PathType Leaf) {
 }
 
 pyinstaller crynux_worker_process.spec
+Check-ExitCode
 
 Move-Item -Path "dist/crynux_worker_process" "dist/Crynux Node/crynux_worker_process"
 

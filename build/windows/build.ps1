@@ -1,3 +1,4 @@
+$ErrorActionPreference = "Stop"
 $PROJECT_ROOT = Get-Location
 .\build\windows\prepare.ps1 build\crynux_node
 Set-Location "build\crynux_node"
