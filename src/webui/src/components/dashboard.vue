@@ -1,5 +1,5 @@
 <script setup>
-import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref, watch, nextTick } from 'vue'
 import {
     PauseCircleOutlined,
     LogoutOutlined,
@@ -49,6 +49,11 @@ const accountEditor = ref(null)
 const showTestTokenModal = ref(false)
 const showWithdrawModal = ref(false)
 
+const topRow = ref(null)
+const alertsRow = ref(null)
+const cardsRow1 = ref(null)
+const cardsRow2 = ref(null)
+
 const systemInfo = reactive({
     gpu: {
         usage: 0,
@@ -67,9 +72,10 @@ const systemInfo = reactive({
         total_mb: 0
     },
     disk: {
-        base_models: 0,
-        lora_models: 0,
-        logs: 0
+        hf_models: 0,
+        external_models: 0,
+        logs: 0,
+        temp_files: 0
     }
 })
 
@@ -201,15 +207,27 @@ let fixedBottomBar = ref(false)
 
 const windowResized = () => {
     const bottomBar = document.getElementById("bottom-bar")
-    if(!bottomBar)
+    if (!bottomBar || !topRow.value || !alertsRow.value || !cardsRow1.value || !cardsRow2.value) {
         return
+    }
 
-    const windowHeight = window.innerHeight
-    const contentHeight = document.getElementById("content-container").offsetHeight
-    const bottomBarHeight = bottomBar.offsetHeight
+    const topRowHeight = topRow.value.$el.offsetHeight;
+    const alertsRowHeight = alertsRow.value.$el.offsetHeight;
+    const cardsRow1Height = cardsRow1.value.$el.offsetHeight;
+    const cardsRow2Height = cardsRow2.value.$el.offsetHeight;
 
-    const threshold = fixedBottomBar.value ? contentHeight + bottomBarHeight + 68 : contentHeight
-    fixedBottomBar.value = windowHeight > threshold
+    // There is a 16px margin-top on the second row of cards.
+    const mainContentHeight = topRowHeight + alertsRowHeight + cardsRow1Height + 16 + cardsRow2Height;
+
+    const bottomBarHeight = bottomBar.offsetHeight;
+    // There is a 68px margin-top on the bottom bar when it is not fixed.
+    const bottomBarMargin = 68;
+
+    const totalContentHeight = mainContentHeight + bottomBarMargin + bottomBarHeight;
+
+    const windowHeight = window.innerHeight;
+
+    fixedBottomBar.value = windowHeight > totalContentHeight;
 }
 
 const accountBalance = computed(() => {
@@ -328,6 +346,9 @@ const updateUI = async () => {
         logger.error("Updating node scores failed:")
         logger.error(e)
     }
+    nextTick(() => {
+        windowResized()
+    })
 }
 
 const updateSettings = async (ticket) => {
@@ -484,11 +505,30 @@ const copyText = async (text) => {
     return navigator.clipboard.writeText(text)
 }
 
+const formatBytes = (kb) => {
+    if (typeof kb !== 'number' || isNaN(kb)) return { value: '0', unit: 'KB' };
+
+    const value = parseFloat(kb);
+
+    if (value < 1024) {
+        return { value: value.toLocaleString('en-US'), unit: 'KB' };
+    } else if (value < 1024 * 1024) {
+        return { value: (value / 1024).toLocaleString('en-US', { maximumFractionDigits: 2 }), unit: 'MB' };
+    } else {
+        return { value: (value / (1024 * 1024)).toLocaleString('en-US', { maximumFractionDigits: 2 }), unit: 'GB' };
+    }
+}
+
+const hfModelsFormatted = computed(() => formatBytes(systemInfo.disk.hf_models));
+const externalModelsFormatted = computed(() => formatBytes(systemInfo.disk.external_models));
+const logsFormatted = computed(() => formatBytes(systemInfo.disk.logs));
+const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files));
+
 </script>
 
 <template>
-    <a-row class="top-row"></a-row>
-    <a-row>
+    <a-row ref="topRow" class="top-row"></a-row>
+    <a-row ref="alertsRow">
         <a-col
             :xs="{ span: 22, offset: 1, order: 1 }"
             :sm="{ span: 22, offset: 1, order: 1 }"
@@ -601,11 +641,11 @@ const copyText = async (text) => {
             </a-alert>
         </a-col>
     </a-row>
-    <a-row :gutter="[16, 16]">
+    <a-row ref="cardsRow1" :gutter="[16, 16]">
         <a-col
             :xs="{ span: 24, order: 1 }"
-            :sm="{ span: 8, order: 1 }"
-            :md="{ span: 8, order: 1 }"
+            :sm="{ span: 12, order: 1 }"
+            :md="{ span: 12, order: 1 }"
             :lg="{ span: 8, order: 1 }"
             :xl="{ span: 7, offset: 1, order: 1 }"
             :xxl="{ span: 6, offset: 3, order: 1 }"
@@ -714,7 +754,7 @@ const copyText = async (text) => {
                             </a-button
                             >
                         </div>
-                        <div style="margin-top: 8px; text-align: center" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
                             <a-typography-text type="secondary">
                                 Staking: {{ settings.staking_amount }} CNX
                             </a-typography-text>
@@ -746,8 +786,8 @@ const copyText = async (text) => {
 
         <a-col
             :xs="{ span: 24, order: 2 }"
-            :sm="{ span: 8, order: 2 }"
-            :md="{ span: 8, order: 2 }"
+            :sm="{ span: 12, order: 2 }"
+            :md="{ span: 12, order: 2 }"
             :lg="{ span: 8, order: 2 }"
             :xl="{ span: 7, order: 2 }"
             :xxl="{ span: 6, order: 2 }"
@@ -804,8 +844,8 @@ const copyText = async (text) => {
 
         <a-col
             :xs="{ span: 24, order: 3 }"
-            :sm="{ span: 8, order: 3 }"
-            :md="{ span: 8, order: 3 }"
+            :sm="{ span: 12, order: 3 }"
+            :md="{ span: 12, order: 3 }"
             :lg="{ span: 8, order: 3 }"
             :xl="{ span: 8, order: 3 }"
             :xxl="{ span: 6, order: 3 }"
@@ -859,15 +899,13 @@ const copyText = async (text) => {
                 </a-row>
             </a-card>
         </a-col>
-    </a-row>
-    <a-row :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
-            :xs="{ span: 24 }"
-            :sm="{ span: 14 }"
-            :md="{ span: 14 }"
-            :lg="{ span: 14 }"
-            :xl="{ span: 14, offset: 1 }"
-            :xxl="{ span: 10, offset: 3 }"
+            :xs="{ span: 24, order: 5 }"
+            :sm="{ span: 24, order: 5 }"
+            :md="{ span: 24, order: 5 }"
+            :lg="{ span: 14, order: 4 }"
+            :xl="{ span: 14, offset: 1, order: 4 }"
+            :xxl="{ span: 10, offset: 3, order: 4 }"
         >
             <a-card title="Node Wallet" :bordered="false" style="height: 100%; opacity: 0.9">
                 <template #extra>
@@ -884,7 +922,7 @@ const copyText = async (text) => {
                             <a-statistic title="Address" class="wallet-address">
                                 <template #formatter>
                                     <span>{{ shortAddress }}</span>
-                                    <a-button @click="copyText(accountStatus.address)">
+                                    <a-button @click="copyText(accountStatus.address)" style="margin-left: 8px">
                                         <template #icon>
                                             <CopyOutlined />
                                         </template>
@@ -904,6 +942,11 @@ const copyText = async (text) => {
                         <a-statistic title="CNX Staked" class="wallet-value">
                             <template #formatter>
                                 <a-typography-text>{{ accountStaked }}</a-typography-text>
+                                <a-button @click="systemStore.showSettingsModal = true" style="margin-left: 8px">
+                                    <template #icon>
+                                        <EditOutlined />
+                                    </template>
+                                </a-button>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -911,12 +954,12 @@ const copyText = async (text) => {
             </a-card>
         </a-col>
         <a-col
-            :xs="{ span: 24 }"
-            :sm="{ span: 10 }"
-            :md="{ span: 10 }"
-            :lg="{ span: 10 }"
-            :xl="{ span: 8 }"
-            :xxl="{ span: 8 }"
+            :xs="{ span: 24, order: 4 }"
+            :sm="{ span: 12, order: 4 }"
+            :md="{ span: 12, order: 4 }"
+            :lg="{ span: 10, order: 5 }"
+            :xl="{ span: 8, order: 5 }"
+            :xxl="{ span: 8, order: 5 }"
         >
             <a-card title="Relay Account" :bordered="false" style="height: 100%; opacity: 0.9">
                 <a-row>
@@ -955,7 +998,7 @@ const copyText = async (text) => {
             </a-card>
         </a-col>
     </a-row>
-    <a-row :gutter="[16, 16]" style="margin-top: 16px">
+    <a-row ref="cardsRow2" :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
             :xs="{ span: 24, offset: 0 }"
             :sm="{ span: 16, offset: 0 }"
@@ -1081,34 +1124,34 @@ const copyText = async (text) => {
                 <a-row>
                     <a-col :span="12">
                         <a-statistic
-                            :value="systemInfo.disk.base_models"
+                            :value="hfModelsFormatted.value"
                             :value-style="{ 'font-size': '14px' }"
                         >
                             <template #title><span style="font-size: 12px">HF Models</span></template>
-                            <template #suffix>GB</template>
+                            <template #suffix>{{ hfModelsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="12">
                         <a-statistic
-                            :value="systemInfo.disk.lora_models"
+                            :value="externalModelsFormatted.value"
                             :value-style="{ 'font-size': '14px' }"
                         >
                             <template #title><span style="font-size: 12px">External Models</span></template>
-                            <template #suffix>MB</template>
+                            <template #suffix>{{ externalModelsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                 </a-row>
                 <a-row style="margin-top: 12px">
                     <a-col :span="12">
-                        <a-statistic :value="systemInfo.disk.logs" :value-style="{ 'font-size': '14px' }">
+                        <a-statistic :value="logsFormatted.value" :value-style="{ 'font-size': '14px' }">
                             <template #title><span style="font-size: 12px">Logs</span></template>
-                            <template #suffix>KB</template>
+                            <template #suffix>{{ logsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="12">
-                        <a-statistic :value="0" :value-style="{ 'font-size': '14px' }">
+                        <a-statistic :value="tempFilesFormatted.value" :value-style="{ 'font-size': '14px' }">
                             <template #title><span style="font-size: 12px">Temp Files</span></template>
-                            <template #suffix>KB</template>
+                            <template #suffix>{{ tempFilesFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                 </a-row>
@@ -1116,48 +1159,206 @@ const copyText = async (text) => {
         </a-col>
     </a-row>
     <div id="bottom-bar" :class="{'bottom-bar': true, 'fixed-bottom-bar': fixedBottomBar}">
-        <a-space class="footer-links" align="center" :direction="screens['xs'] ? 'vertical' : 'horizontal'">
-            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
-            >Twitter
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link :href="config.discord_link" target="_blank"
-            >Discord
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://netstats.crynux.io" target="_blank"
-            >Netstats
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion }}</a-typography-text>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <!-- Place this tag where you want the button to render. -->
-            <github-button
-                href="https://github.com/crynux-network/crynux-node"
-                data-color-scheme="no-preference: light; light: light; dark: light;"
-                data-show-count="true" aria-label="Star Crynux Node on GitHub"
-                :style="{'position': 'relative', 'top': '4px'}"
-            >Star
-            </github-button>
-        </a-space>
-        <div class="footer-logo">
-            <img src="./logo-full-white.png" width="140" alt="Crynux logo" />
-            <div class="network-on">ON</div>
-            <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120" alt="Dymension logo" />
-            <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo" />
-            <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120" alt="Kasplex logo" />
-        </div>
+        <a-row v-if="screens.xl" align="middle" style="height: 100%">
+            <a-col :span="17">
+                <a-space class="footer-links" align="center">
+                    <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://twitter.com/crynuxio" target="_blank">Twitter</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion }}</a-typography-text>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <!-- Place this tag where you want the button to render. -->
+                    <github-button
+                        href="https://github.com/crynux-network/crynux-node"
+                        data-color-scheme="no-preference: light; light: light; dark: light;"
+                        data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                        :style="{'position': 'relative', 'top': '4px'}"
+                    >Star
+                    </github-button>
+                </a-space>
+            </a-col>
+            <a-col :span="7">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+        <a-row v-else-if="screens.lg" align="middle" style="height: 100%">
+            <a-col :span="16">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
+                            >Twitter
+                            </a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank"
+                            >Discord
+                            </a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
+                            >Netstats
+                            </a-typography-link>
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="8">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+        <a-row v-else-if="screens.md" align="middle" style="padding: 16px 0;">
+            <a-col :span="12">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank">Twitter</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="12">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+
+        <a-row v-else :gutter="[0, 8]" style="padding: 8px 0;">
+            <a-col :span="24">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
+                            >Twitter
+                            </a-typography-link
+                            >
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank"
+                            >Discord
+                            </a-typography-link
+                            >
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
+                            >Netstats
+                            </a-typography-link
+                            >
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="24">
+                <div class="footer-logo" style="float: left;margin-top: 24px">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
     </div>
 
     <a-modal
@@ -1201,11 +1402,11 @@ const copyText = async (text) => {
         />
         <a-form layout="vertical">
             <a-form-item
-                label="Staking Amount (Test CNX)"
+                label="Staking Amount"
                 :validate-status="isStakingAmountValid ? '' : 'error'"
-                :help="isStakingAmountValid ? 'Minimum staking amount is 400 Test CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
+                :help="isStakingAmountValid ? 'Minimum staking amount is 400 CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
             >
-                <a-input-number v-model:value="editableSettings.staking_amount" style="width: 100%"/>
+                <a-input-number v-model:value="editableSettings.staking_amount" prefix="CNX" style="width: 100%"/>
             </a-form-item>
         </a-form>
     </a-modal>
@@ -1258,7 +1459,7 @@ const copyText = async (text) => {
 .bottom-bar
     position relative
     width 100%
-    height 60px
+    min-height 60px
     padding 0 32px
     margin-top 68px
 
@@ -1268,10 +1469,11 @@ const copyText = async (text) => {
 .footer-links
     color #fff
     opacity 0.8
-    line-height 60px
+    line-height normal
 
     a
         color #fff
+        white-space: nowrap
 
         &:hover
             text-decoration underline
@@ -1295,7 +1497,7 @@ const copyText = async (text) => {
         font-size 10px
         font-weight bold
         margin-left 4px
-        margin-right 8px
+        margin-right 4px
 
     .dymension-logo
         margin-top 4px
