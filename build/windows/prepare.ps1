@@ -6,6 +6,13 @@ param(
     [string]$RELEASE_DIR
 )
 
+function Check-ExitCode {
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Last command failed with exit code $LASTEXITCODE"
+        exit 1
+    }
+}
+
 if (-not $RELEASE_DIR) {
     Write-Error "Please set the output dir"
     exit 1
@@ -37,8 +44,10 @@ if (Test-Path -Path "dist") {
 
 New-Item -ItemType Directory -Path "dist"
 
+corepack enable
 yarn --immutable
 yarn build
+Check-ExitCode
 
 ## Copy the dist WebUI package to the release folder
 New-Item -ItemType Directory -Path "$RELEASE_DIR/webui"
@@ -61,7 +70,9 @@ Copy-Item $WORK_DIR/MANIFEST.in MANIFEST.in
 Copy-Item $WORK_DIR/go.mod go.mod
 Copy-Item $WORK_DIR/go.sum go.sum
 pip install -r requirements.txt
+Check-ExitCode
 pip install .[app]
+Check-ExitCode
 
 # 3. Build the worker
 
@@ -77,27 +88,35 @@ Set-Location $RELEASE_DIR/worker
 python -m venv venv
 ./venv/Scripts/Activate.ps1
 pip install pyinstaller==6.5.0
+Check-ExitCode
 
 Copy-Item -Recurse $WORK_DIR/stable-diffusion-task $RELEASE_DIR/stable-diffusion-task
 Set-Location $RELEASE_DIR/stable-diffusion-task
 pip install -r requirements_cuda.txt
+Check-ExitCode
 pip install .
+Check-ExitCode
 
 Copy-Item -Recurse $WORK_DIR/gpt-task $RELEASE_DIR/gpt-task
 Set-Location $RELEASE_DIR/gpt-task
 pip install -r requirements_cuda.txt
+Check-ExitCode
 pip install .
+Check-ExitCode
 
 Copy-Item -Recurse $WORK_DIR/crynux-worker $RELEASE_DIR/crynux-worker
 Set-Location $RELEASE_DIR/crynux-worker
 pip install -r requirements.txt
+Check-ExitCode
 pip install .
+Check-ExitCode
 
 # Uninstall triton if it is installed
 pip show triton > $null
 if ($?) {
     Write-Output "Uninstalling triton..."
     pip uninstall triton -y
+    Check-ExitCode
 }
 
 Set-Location $RELEASE_DIR
