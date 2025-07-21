@@ -1,5 +1,5 @@
 <script setup>
-import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, createVNode, h, onBeforeUnmount, onMounted, reactive, ref, watch, nextTick } from 'vue'
 import {
     PauseCircleOutlined,
     LogoutOutlined,
@@ -48,6 +48,11 @@ const settingsAPI = new SettingsAPI()
 const accountEditor = ref(null)
 const showTestTokenModal = ref(false)
 const showWithdrawModal = ref(false)
+
+const topRow = ref(null)
+const alertsRow = ref(null)
+const cardsRow1 = ref(null)
+const cardsRow2 = ref(null)
 
 const systemInfo = reactive({
     gpu: {
@@ -202,15 +207,27 @@ let fixedBottomBar = ref(false)
 
 const windowResized = () => {
     const bottomBar = document.getElementById("bottom-bar")
-    if(!bottomBar)
+    if (!bottomBar || !topRow.value || !alertsRow.value || !cardsRow1.value || !cardsRow2.value) {
         return
+    }
 
-    const windowHeight = window.innerHeight
-    const contentHeight = document.getElementById("content-container").offsetHeight
-    const bottomBarHeight = bottomBar.offsetHeight
+    const topRowHeight = topRow.value.$el.offsetHeight;
+    const alertsRowHeight = alertsRow.value.$el.offsetHeight;
+    const cardsRow1Height = cardsRow1.value.$el.offsetHeight;
+    const cardsRow2Height = cardsRow2.value.$el.offsetHeight;
 
-    const threshold = fixedBottomBar.value ? contentHeight + bottomBarHeight + 68 : contentHeight
-    fixedBottomBar.value = windowHeight > threshold
+    // There is a 16px margin-top on the second row of cards.
+    const mainContentHeight = topRowHeight + alertsRowHeight + cardsRow1Height + 16 + cardsRow2Height;
+
+    const bottomBarHeight = bottomBar.offsetHeight;
+    // There is a 68px margin-top on the bottom bar when it is not fixed.
+    const bottomBarMargin = 68;
+
+    const totalContentHeight = mainContentHeight + bottomBarMargin + bottomBarHeight;
+
+    const windowHeight = window.innerHeight;
+
+    fixedBottomBar.value = windowHeight > totalContentHeight;
 }
 
 const accountBalance = computed(() => {
@@ -329,6 +346,9 @@ const updateUI = async () => {
         logger.error("Updating node scores failed:")
         logger.error(e)
     }
+    nextTick(() => {
+        windowResized()
+    })
 }
 
 const updateSettings = async (ticket) => {
@@ -507,8 +527,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 </script>
 
 <template>
-    <a-row class="top-row"></a-row>
-    <a-row>
+    <a-row ref="topRow" class="top-row"></a-row>
+    <a-row ref="alertsRow">
         <a-col
             :xs="{ span: 22, offset: 1, order: 1 }"
             :sm="{ span: 22, offset: 1, order: 1 }"
@@ -621,7 +641,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-alert>
         </a-col>
     </a-row>
-    <a-row :gutter="[16, 16]">
+    <a-row ref="cardsRow1" :gutter="[16, 16]">
         <a-col
             :xs="{ span: 24, order: 1 }"
             :sm="{ span: 12, order: 1 }"
@@ -978,7 +998,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-card>
         </a-col>
     </a-row>
-    <a-row :gutter="[16, 16]" style="margin-top: 16px">
+    <a-row ref="cardsRow2" :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
             :xs="{ span: 24, offset: 0 }"
             :sm="{ span: 16, offset: 0 }"
