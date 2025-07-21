@@ -624,8 +624,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
     <a-row :gutter="[16, 16]">
         <a-col
             :xs="{ span: 24, order: 1 }"
-            :sm="{ span: 8, order: 1 }"
-            :md="{ span: 8, order: 1 }"
+            :sm="{ span: 12, order: 1 }"
+            :md="{ span: 12, order: 1 }"
             :lg="{ span: 8, order: 1 }"
             :xl="{ span: 7, offset: 1, order: 1 }"
             :xxl="{ span: 6, offset: 3, order: 1 }"
@@ -766,8 +766,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 
         <a-col
             :xs="{ span: 24, order: 2 }"
-            :sm="{ span: 8, order: 2 }"
-            :md="{ span: 8, order: 2 }"
+            :sm="{ span: 12, order: 2 }"
+            :md="{ span: 12, order: 2 }"
             :lg="{ span: 8, order: 2 }"
             :xl="{ span: 7, order: 2 }"
             :xxl="{ span: 6, order: 2 }"
@@ -824,8 +824,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 
         <a-col
             :xs="{ span: 24, order: 3 }"
-            :sm="{ span: 8, order: 3 }"
-            :md="{ span: 8, order: 3 }"
+            :sm="{ span: 12, order: 3 }"
+            :md="{ span: 12, order: 3 }"
             :lg="{ span: 8, order: 3 }"
             :xl="{ span: 8, order: 3 }"
             :xxl="{ span: 6, order: 3 }"
@@ -879,15 +879,13 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 </a-row>
             </a-card>
         </a-col>
-    </a-row>
-    <a-row :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
-            :xs="{ span: 24 }"
-            :sm="{ span: 14 }"
-            :md="{ span: 14 }"
-            :lg="{ span: 14 }"
-            :xl="{ span: 14, offset: 1 }"
-            :xxl="{ span: 10, offset: 3 }"
+            :xs="{ span: 24, order: 5 }"
+            :sm="{ span: 24, order: 5 }"
+            :md="{ span: 24, order: 5 }"
+            :lg="{ span: 14, order: 4 }"
+            :xl="{ span: 14, offset: 1, order: 4 }"
+            :xxl="{ span: 10, offset: 3, order: 4 }"
         >
             <a-card title="Node Wallet" :bordered="false" style="height: 100%; opacity: 0.9">
                 <template #extra>
@@ -936,12 +934,12 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-card>
         </a-col>
         <a-col
-            :xs="{ span: 24 }"
-            :sm="{ span: 10 }"
-            :md="{ span: 10 }"
-            :lg="{ span: 10 }"
-            :xl="{ span: 8 }"
-            :xxl="{ span: 8 }"
+            :xs="{ span: 24, order: 4 }"
+            :sm="{ span: 12, order: 4 }"
+            :md="{ span: 12, order: 4 }"
+            :lg="{ span: 10, order: 5 }"
+            :xl="{ span: 8, order: 5 }"
+            :xxl="{ span: 8, order: 5 }"
         >
             <a-card title="Relay Account" :bordered="false" style="height: 100%; opacity: 0.9">
                 <a-row>
