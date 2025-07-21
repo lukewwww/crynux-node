@@ -230,7 +230,7 @@ async def get_disk_info(
         if await Path(path).exists():
             size = 0
             async for f in Path(path).rglob("*"):
-                if await f.is_file():
+                if await f.is_file() and (not await f.is_symlink()):
                     size += (await f.stat()).st_size
             result[key] = size // 1024
     return DiskInfo(**result)
