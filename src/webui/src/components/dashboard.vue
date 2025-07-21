@@ -1141,48 +1141,206 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
         </a-col>
     </a-row>
     <div id="bottom-bar" :class="{'bottom-bar': true, 'fixed-bottom-bar': fixedBottomBar}">
-        <a-space class="footer-links" align="center" :direction="screens['xs'] ? 'vertical' : 'horizontal'">
-            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
-            >Twitter
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link :href="config.discord_link" target="_blank"
-            >Discord
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-link href="https://netstats.crynux.io" target="_blank"
-            >Netstats
-            </a-typography-link
-            >
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion }}</a-typography-text>
-            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-            <!-- Place this tag where you want the button to render. -->
-            <github-button
-                href="https://github.com/crynux-network/crynux-node"
-                data-color-scheme="no-preference: light; light: light; dark: light;"
-                data-show-count="true" aria-label="Star Crynux Node on GitHub"
-                :style="{'position': 'relative', 'top': '4px'}"
-            >Star
-            </github-button>
-        </a-space>
-        <div class="footer-logo">
-            <img src="./logo-full-white.png" width="140" alt="Crynux logo" />
-            <div class="network-on">ON</div>
-            <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120" alt="Dymension logo" />
-            <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo" />
-            <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120" alt="Kasplex logo" />
-        </div>
+        <a-row v-if="screens.xl" align="middle" style="height: 100%">
+            <a-col :span="17">
+                <a-space class="footer-links" align="center">
+                    <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://twitter.com/crynuxio" target="_blank">Twitter</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion }}</a-typography-text>
+                    <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                    <!-- Place this tag where you want the button to render. -->
+                    <github-button
+                        href="https://github.com/crynux-network/crynux-node"
+                        data-color-scheme="no-preference: light; light: light; dark: light;"
+                        data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                        :style="{'position': 'relative', 'top': '4px'}"
+                    >Star
+                    </github-button>
+                </a-space>
+            </a-col>
+            <a-col :span="7">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+        <a-row v-else-if="screens.lg" align="middle" style="height: 100%">
+            <a-col :span="16">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
+                            >Twitter
+                            </a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank"
+                            >Discord
+                            </a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
+                            >Netstats
+                            </a-typography-link>
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="8">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+        <a-row v-else-if="screens.md" align="middle" style="padding: 16px 0;">
+            <a-col :span="12">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank">Twitter</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="12">
+                <div class="footer-logo">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
+
+        <a-row v-else :gutter="[0, 8]" style="padding: 8px 0;">
+            <a-col :span="24">
+                <div class="footer-links">
+                    <a-space direction="vertical" align="start">
+                        <a-space :wrap="true">
+                            <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-text :style="{'color':'white'}">Runner v{{ runnerVersion
+                                }}
+                            </a-typography-text>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <github-button
+                                href="https://github.com/crynux-network/crynux-node"
+                                data-color-scheme="no-preference: light; light: light; dark: light;"
+                                data-show-count="true" aria-label="Star Crynux Node on GitHub"
+                                :style="{'position': 'relative', 'top': '4px'}"
+                            >Star
+                            </github-button>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://crynux.io" target="_blank">Home</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://docs.crynux.io" target="_blank">Docs</a-typography-link>
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://blog.crynux.io" target="_blank">Blog</a-typography-link>
+                        </a-space>
+                        <a-space :wrap="true">
+                            <a-typography-link href="https://twitter.com/crynuxio" target="_blank"
+                            >Twitter
+                            </a-typography-link
+                            >
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link :href="config.discord_link" target="_blank"
+                            >Discord
+                            </a-typography-link
+                            >
+                            <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
+                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
+                            >Netstats
+                            </a-typography-link
+                            >
+                        </a-space>
+                    </a-space>
+                </div>
+            </a-col>
+            <a-col :span="24">
+                <div class="footer-logo" style="float: left;margin-top: 24px">
+                    <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
+                    <div class="network-on">ON</div>
+                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
+                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
+                         alt="Kasplex logo"/>
+                </div>
+            </a-col>
+        </a-row>
     </div>
 
     <a-modal
@@ -1283,7 +1441,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 .bottom-bar
     position relative
     width 100%
-    height 60px
+    min-height 60px
     padding 0 32px
     margin-top 68px
 
@@ -1293,10 +1451,11 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 .footer-links
     color #fff
     opacity 0.8
-    line-height 60px
+    line-height normal
 
     a
         color #fff
+        white-space: nowrap
 
         &:hover
             text-decoration underline
@@ -1320,7 +1479,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
         font-size 10px
         font-weight bold
         margin-left 4px
-        margin-right 8px
+        margin-right 4px
 
     .dymension-logo
         margin-top 4px
