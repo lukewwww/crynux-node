@@ -67,9 +67,10 @@ const systemInfo = reactive({
         total_mb: 0
     },
     disk: {
-        base_models: 0,
-        lora_models: 0,
-        logs: 0
+        hf_models: 0,
+        external_models: 0,
+        logs: 0,
+        temp_files: 0
     }
 })
 
@@ -484,6 +485,25 @@ const copyText = async (text) => {
     return navigator.clipboard.writeText(text)
 }
 
+const formatBytes = (kb) => {
+    if (typeof kb !== 'number' || isNaN(kb)) return { value: '0', unit: 'KB' };
+
+    const value = parseFloat(kb);
+
+    if (value < 1024) {
+        return { value: value.toLocaleString('en-US'), unit: 'KB' };
+    } else if (value < 1024 * 1024) {
+        return { value: (value / 1024).toLocaleString('en-US', { maximumFractionDigits: 2 }), unit: 'MB' };
+    } else {
+        return { value: (value / (1024 * 1024)).toLocaleString('en-US', { maximumFractionDigits: 2 }), unit: 'GB' };
+    }
+}
+
+const hfModelsFormatted = computed(() => formatBytes(systemInfo.disk.hf_models));
+const externalModelsFormatted = computed(() => formatBytes(systemInfo.disk.external_models));
+const logsFormatted = computed(() => formatBytes(systemInfo.disk.logs));
+const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files));
+
 </script>
 
 <template>
@@ -714,7 +734,7 @@ const copyText = async (text) => {
                             </a-button
                             >
                         </div>
-                        <div style="margin-top: 8px; text-align: center" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
                             <a-typography-text type="secondary">
                                 Staking: {{ settings.staking_amount }} CNX
                             </a-typography-text>
@@ -884,7 +904,7 @@ const copyText = async (text) => {
                             <a-statistic title="Address" class="wallet-address">
                                 <template #formatter>
                                     <span>{{ shortAddress }}</span>
-                                    <a-button @click="copyText(accountStatus.address)">
+                                    <a-button @click="copyText(accountStatus.address)" style="margin-left: 8px">
                                         <template #icon>
                                             <CopyOutlined />
                                         </template>
@@ -904,6 +924,11 @@ const copyText = async (text) => {
                         <a-statistic title="CNX Staked" class="wallet-value">
                             <template #formatter>
                                 <a-typography-text>{{ accountStaked }}</a-typography-text>
+                                <a-button @click="systemStore.showSettingsModal = true" style="margin-left: 8px">
+                                    <template #icon>
+                                        <EditOutlined />
+                                    </template>
+                                </a-button>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -1081,34 +1106,34 @@ const copyText = async (text) => {
                 <a-row>
                     <a-col :span="12">
                         <a-statistic
-                            :value="systemInfo.disk.base_models"
+                            :value="hfModelsFormatted.value"
                             :value-style="{ 'font-size': '14px' }"
                         >
                             <template #title><span style="font-size: 12px">HF Models</span></template>
-                            <template #suffix>GB</template>
+                            <template #suffix>{{ hfModelsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="12">
                         <a-statistic
-                            :value="systemInfo.disk.lora_models"
+                            :value="externalModelsFormatted.value"
                             :value-style="{ 'font-size': '14px' }"
                         >
                             <template #title><span style="font-size: 12px">External Models</span></template>
-                            <template #suffix>MB</template>
+                            <template #suffix>{{ externalModelsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                 </a-row>
                 <a-row style="margin-top: 12px">
                     <a-col :span="12">
-                        <a-statistic :value="systemInfo.disk.logs" :value-style="{ 'font-size': '14px' }">
+                        <a-statistic :value="logsFormatted.value" :value-style="{ 'font-size': '14px' }">
                             <template #title><span style="font-size: 12px">Logs</span></template>
-                            <template #suffix>KB</template>
+                            <template #suffix>{{ logsFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                     <a-col :span="12">
-                        <a-statistic :value="0" :value-style="{ 'font-size': '14px' }">
+                        <a-statistic :value="tempFilesFormatted.value" :value-style="{ 'font-size': '14px' }">
                             <template #title><span style="font-size: 12px">Temp Files</span></template>
-                            <template #suffix>KB</template>
+                            <template #suffix>{{ tempFilesFormatted.unit }}</template>
                         </a-statistic>
                     </a-col>
                 </a-row>
@@ -1201,11 +1226,11 @@ const copyText = async (text) => {
         />
         <a-form layout="vertical">
             <a-form-item
-                label="Staking Amount (Test CNX)"
+                label="Staking Amount"
                 :validate-status="isStakingAmountValid ? '' : 'error'"
-                :help="isStakingAmountValid ? 'Minimum staking amount is 400 Test CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
+                :help="isStakingAmountValid ? 'Minimum staking amount is 400 CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
             >
-                <a-input-number v-model:value="editableSettings.staking_amount" style="width: 100%"/>
+                <a-input-number v-model:value="editableSettings.staking_amount" prefix="CNX" style="width: 100%"/>
             </a-form-item>
         </a-form>
     </a-modal>
