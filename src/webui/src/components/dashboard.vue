@@ -185,17 +185,10 @@ const toEtherValue = (bigNum) => {
     return decimals + '.' + fractions
 }
 
-const stakingMinimum = 4e20
-const gasMinimum = 1e16
-
-const ethEnoughForGas = () => {
-    if (accountStatus.balance === 0) return false
-    return accountStatus.balance >= gasMinimum
-}
-
 const ethEnough = () => {
-    if (accountStatus.balance === 0) return false
-    return accountStatus.balance >= (stakingMinimum + gasMinimum)
+    if (!accountStatus.address) return false
+    if (typeof settings.staking_amount !== 'number') return false
+    return accountStatus.balance >= BigInt(settings.staking_amount) * BigInt(1e18)
 }
 
 const privateKeyUpdated = async () => {
@@ -600,33 +593,12 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             ></a-alert>
             <a-alert
                 type="error"
-                message="Not enough tokens in the account. At least 400.01 test CNXs are required."
+                :message="`Not enough tokens in the account. At least ${settings.staking_amount} CNXs are required.`"
                 class="top-alert"
                 v-if="
           (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) &&
           accountStatus.address !== '' &&
           !ethEnough()
-        "
-            >
-                <template #action>
-                    <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord
-                    </a-button>
-                </template>
-                <template #description>
-                    Get the test CNXs for free:
-                    <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}
-                    </a-typography-link>
-                </template>
-            </a-alert>
-            <a-alert
-                type="error"
-                message="Not enough tokens in the account. At least 0.01 test CNXs are required for the gas fee."
-                class="top-alert"
-                v-if="
-          nodeStatus.status !== nodeAPI.NODE_STATUS_STOPPED &&
-          nodeStatus.status !== nodeAPI.NODE_STATUS_INITIALIZING &&
-          accountStatus.address !== '' &&
-          !ethEnoughForGas()
         "
             >
                 <template #action>
@@ -724,7 +696,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PauseCircleOutlined)"
                                 @click="sendNodeAction('pause')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnoughForGas()"
                             >Pause
                             </a-button
                             >
@@ -738,7 +709,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(LogoutOutlined)"
                                 @click="sendNodeAction('stop')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnoughForGas()"
                             >Stop
                             </a-button
                             >
@@ -771,7 +741,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PlayCircleOutlined)"
                                 @click="sendNodeAction('resume')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnoughForGas()"
                             >Resume
                             </a-button
                             >
