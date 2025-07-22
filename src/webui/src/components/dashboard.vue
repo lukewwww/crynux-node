@@ -185,11 +185,10 @@ const toEtherValue = (bigNum) => {
     return decimals + '.' + fractions
 }
 
-const stakingMinimum = 4e20
-
 const ethEnough = () => {
-    if (accountStatus.balance === 0) return false
-    return accountStatus.balance >= stakingMinimum
+    if (!accountStatus.address) return false
+    if (typeof settings.staking_amount !== 'number') return false
+    return accountStatus.balance >= BigInt(settings.staking_amount) * BigInt(1e18)
 }
 
 const privateKeyUpdated = async () => {
@@ -594,9 +593,13 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             ></a-alert>
             <a-alert
                 type="error"
-                message="Not enough tokens in the account. At least 400 CNXs are required."
+                :message="`Not enough tokens in the account. At least ${settings.staking_amount} CNXs are required.`"
                 class="top-alert"
-                v-if="(nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) && accountStatus.address !== '' && !ethEnough()"
+                v-if="
+          (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) &&
+          accountStatus.address !== '' &&
+          !ethEnough()
+        "
             >
                 <template #action>
                     <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord
@@ -693,7 +696,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PauseCircleOutlined)"
                                 @click="sendNodeAction('pause')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnough()"
                             >Pause
                             </a-button
                             >
@@ -707,7 +709,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(LogoutOutlined)"
                                 @click="sendNodeAction('stop')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnough()"
                             >Stop
                             </a-button
                             >
@@ -740,7 +741,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PlayCircleOutlined)"
                                 @click="sendNodeAction('resume')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnough()"
                             >Resume
                             </a-button
                             >
