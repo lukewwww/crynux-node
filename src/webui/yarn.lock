@@ -2556,9 +2556,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"stylus@npm:^0.60.0":
+"stylus@github:stylus/stylus#0.60.0":
   version: 0.60.0
-  resolution: "stylus@npm:0.60.0"
+  resolution: "stylus@https://github.com/stylus/stylus.git#commit=d20dc7654ac2adb1e190be9c7ccfb47507229d8d"
   dependencies:
     "@adobe/css-tools": "npm:~4.2.0"
     debug: "npm:^4.3.2"
@@ -2566,8 +2566,8 @@ __metadata:
     sax: "npm:~1.2.4"
     source-map: "npm:^0.7.3"
   bin:
-    stylus: bin/stylus
-  checksum: 10c0/91d84f3cf1aa2cc05d5fdd6832f3425f0051a1f06ac92e61e5e2e45056b2d0a1ae0d47976e6ad25e20c454ea9b975565e84ecb83633563b9b03f47993d35dc08
+    stylus: ./bin/stylus
+  checksum: 10c0/a9dbc669d56db35de4f90bcab1dcbc33f849c900b9ad088299809a043957136b694a81566550460adc5671ae64a67fad08203d89c87d1e8aacbb8f8613eb4299
   languageName: node
   linkType: hard
 
@@ -2824,7 +2824,7 @@ __metadata:
     loglevel: "npm:^1.9.1"
     pinia: "npm:^2.1.7"
     prettier: "npm:^3.0.0"
-    stylus: "npm:^0.60.0"
+    stylus: "github:stylus/stylus#0.60.0"
     vite: "npm:^4.4.9"
     vue: "npm:^3.3.4"
     vue-github-button: "npm:^3.1.0"
