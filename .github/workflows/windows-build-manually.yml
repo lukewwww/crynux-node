@@ -63,6 +63,7 @@ jobs:
         run: ./build/windows/build.ps1
 
       - name: upload to temp.sh
+        shell: bash
         run: |
           export FILENAME=crynux-node-helium-v${{ env.RELEASE_VERSION }}-windows-x64.zip
           curl -F "file=@build/crynux_node/dist/$FILENAME" https://temp.sh/upload
