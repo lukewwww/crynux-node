@@ -62,15 +62,7 @@ jobs:
       - name: Run the build script
         run: ./build/windows/build.ps1
 
-      - id: gdrive
-        name: Upload to gdrive
-        uses: hoatruongdev09/google-drive-file-upload-github-action@v1.1
-        with:
-          overrwrite: true
-          service-account-json: ${{ secrets.TEST_GOOGLE_DRIVE_GSA_CREDENTIALS_BASE64 }}
-          file-path: "build/crynux_node/dist/crynux-node-helium-v${{ env.RELEASE_VERSION }}-windows-x64.zip"
-          upload-name: "crynux-node-helium-${{ steps.vars.outputs.sha_short }}-windows-x64.zip"
-          upload-to-folder-id: ${{ secrets.TEST_GOOGLE_DRIVE_FOLDER_ID }}
-    outputs:
-      google-drive-link-content: ${{ steps.gdrive.outputs.web-content-link }}
-      google-drive-link-view: ${{ steps.gdrive.outputs.web-view-link }}
+      - name: upload to temp.sh
+        run: |
+          FILENAME=crynux-node-helium-v${{ env.RELEASE_VERSION }}-windows-x64.zip
+          curl -F "file=@build/crynux_node/dist/$FILENAME" https://temp.sh/upload
