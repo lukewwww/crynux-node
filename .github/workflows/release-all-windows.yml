@@ -9,7 +9,24 @@ on:
       release_version:
         required: true
         type: string
-
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'build manually trigger'
+        required: true
+        default: 'triggered by developer'
+      home:
+        description: 'location'
+        required: false
+        default: 'The developer team'
+      blockchain:
+        description: 'Blockchain'
+        required: true
+        default: 'dymension'
+      release_version:
+        required: true
+        type: string
+  
 jobs:
   build-the-windows-binary:
     name: Build the release Windows binary
