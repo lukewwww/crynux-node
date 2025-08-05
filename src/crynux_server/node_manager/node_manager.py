@@ -396,6 +396,11 @@ class NodeManager(object):
         ):
             with attemp:
                 try:
+                    if attemp.retry_state.attempt_number > 0:
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Running
+                        )
+                        await self.state_cache.set_tx_state(models.TxStatus.Success)
                     await self._node_state_manager.start_sync()
                 except Exception as e:
                     _logger.exception(e)
@@ -466,6 +471,11 @@ class NodeManager(object):
         ):
             with attemp:
                 try:
+                    if attemp.retry_state.attempt_number > 0:
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Running
+                        )
+                        await self.state_cache.set_tx_state(models.TxStatus.Success)
                     async with create_task_group() as tg:
                         if not task_status_set:
                             await tg.start(self._watcher.start)
