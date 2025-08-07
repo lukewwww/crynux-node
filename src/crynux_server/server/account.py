@@ -12,11 +12,11 @@ _logger = logging.getLogger(__name__)
 
 class AccountInfo(BaseModel):
     address: str
-    balance: int
-    staking: int
+    balance: str
+    staking: str
 
 
-_account_info = AccountInfo(address="", balance=0, staking=0)
+_account_info = AccountInfo(address="", balance="0", staking="0")
 
 
 async def update_account_info(interval: int):
@@ -28,11 +28,11 @@ async def update_account_info(interval: int):
             relay = get_relay()
 
             async def _update_balance():
-                _account_info.balance = await relay.get_balance()
+                _account_info.balance = str(await relay.get_balance())
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
-                _account_info.staking = await relay.get_staking_amount()
+                _account_info.staking = str(await relay.get_staking_amount())
                 _logger.debug(f"staking: {_account_info.staking}")
 
             async with create_task_group() as tg:
