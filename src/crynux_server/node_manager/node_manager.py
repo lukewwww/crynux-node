@@ -528,10 +528,7 @@ class NodeManager(object):
                 try:
                     node_info = await self._relay.node_get_node_info()
                     status = node_info.status
-                    if status in [
-                        models.ChainNodeStatus.AVAILABLE,
-                        models.ChainNodeStatus.BUSY,
-                    ]:
+                    if status != models.ChainNodeStatus.QUIT:
                         return True
                     balance = await self._relay.get_balance()
                     if balance >= node_amount:
