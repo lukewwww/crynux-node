@@ -11,6 +11,7 @@ from crynux_server.contracts import Contracts, TxOption
 from crynux_server.download_model_cache import DownloadModelCache
 from crynux_server.relay.abc import Relay
 from crynux_server.relay.exceptions import RelayError
+from crynux_server.contracts.exceptions import TxRevertedError
 
 from .state_cache import ManagerStateCache
 
@@ -50,7 +51,6 @@ class NodeStateManager(object):
         await self.state_cache.set_tx_state(models.TxStatus.Success)
 
     async def _wait_for_stop(self):
-        pending = True
 
         while True:
             local_status = await self._get_node_status()
@@ -59,11 +59,14 @@ class NodeStateManager(object):
                 models.NodeStatus.PendingStop,
             ], "Node status on chain is not stopped or pending."
             await self.state_cache.set_node_state(local_status)
-            if pending:
-                await self.state_cache.set_tx_state(models.TxStatus.Success)
-                pending = False
             if local_status == models.NodeStatus.Stopped:
-                break
+                node_staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
+                staking_amount = node_staking_info.staked_balance + node_staking_info.staked_credits
+                if staking_amount > 0 and node_staking_info.is_locked:
+                    waiter = await self.contracts.node_staking_contract.unstake()
+                    await waiter.wait()
+                await self.state_cache.set_tx_state(models.TxStatus.Success)
+                return
 
     async def _wait_for_pause(self):
         pending = True
@@ -113,18 +116,20 @@ class NodeStateManager(object):
                 while True:
                     node_status = (await self.state_cache.get_node_state()).status
                     tx_status = (await self.state_cache.get_tx_state()).status
-                    if node_status == models.NodeStatus.Stopped:
-                        node_staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
-                        staking_amount = node_staking_info.staked_balance + node_staking_info.staked_credits
-                        if staking_amount > 0 and node_staking_info.is_locked:
-                            async with self._tx_lock:
-                                if tx_status == models.TxStatus.Pending:
-                                    continue
-                                await self.state_cache.set_tx_state(models.TxStatus.Pending)
-                                async with self._wrap_tx_error():
-                                    waiter = await self.contracts.node_staking_contract.unstake()
-                                    await waiter.wait()
-                                    await self.state_cache.set_tx_state(models.TxStatus.Success)
+                    if node_status == models.NodeStatus.Stopped and tx_status != models.TxStatus.Pending:
+                        async with self._tx_lock:
+                            node_status = (await self.state_cache.get_node_state()).status
+                            tx_status = (await self.state_cache.get_tx_state()).status
+                            if node_status == models.NodeStatus.Stopped and tx_status != models.TxStatus.Pending:
+                                node_staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
+                                staking_amount = node_staking_info.staked_balance + node_staking_info.staked_credits
+                                if staking_amount > 0 and node_staking_info.is_locked:
+                                    await self.state_cache.set_tx_state(models.TxStatus.Pending)
+                                    async with self._wrap_tx_error():
+                                        waiter = await self.contracts.node_staking_contract.unstake()
+                                        await waiter.wait()
+                                        await self.state_cache.set_tx_state(models.TxStatus.Success)
+                        
                     await sleep(interval)
         finally:
             self._auto_unstake_scope = None
@@ -145,7 +150,7 @@ class NodeStateManager(object):
             raise
         except get_cancelled_exc_class():
             raise
-        except (RelayError, AssertionError, ValueError) as e:
+        except (RelayError, AssertionError, ValueError, TxRevertedError) as e:
             _logger.error(f"tx error {str(e)}")
             with fail_after(5, shield=True):
                 await self.state_cache.set_tx_state(models.TxStatus.Error, str(e))
@@ -187,7 +192,11 @@ class NodeStateManager(object):
                 else:
                     staked_credits = staking_amount
                     staked_balance = 0
-                
+
+                tx_status = (await self.state_cache.get_tx_state()).status
+                if tx_status == models.TxStatus.Pending:
+                    continue
+
                 async with self._tx_lock:
                     tx_status = (await self.state_cache.get_tx_state()).status
                     if tx_status == models.TxStatus.Pending:
@@ -210,6 +219,10 @@ class NodeStateManager(object):
                         # it's the same in try_stop method
                         await self._wait_for_running()
             elif status == models.ChainNodeStatus.PAUSED:
+                tx_status = (await self.state_cache.get_tx_state()).status
+                if tx_status == models.TxStatus.Pending:
+                    continue
+
                 async with self._tx_lock:
                     tx_status = (await self.state_cache.get_tx_state()).status
                     if tx_status == models.TxStatus.Pending:
@@ -226,7 +239,11 @@ class NodeStateManager(object):
         while True:
             node_info = await self.relay.node_get_node_info()
             status = node_info.status
+            
             if status == models.ChainNodeStatus.AVAILABLE:
+                tx_status = (await self.state_cache.get_tx_state()).status
+                if tx_status == models.TxStatus.Pending:
+                    continue
                 async with self._tx_lock:
                     tx_status = (await self.state_cache.get_tx_state()).status
                     if tx_status == models.TxStatus.Pending:
@@ -257,7 +274,16 @@ class NodeStateManager(object):
         assert (
             node_status == models.NodeStatus.Stopped
         ), "Cannot start node. Node is not stopped."
+        tx_status = (await self.state_cache.get_tx_state()).status
+        assert (
+            tx_status != models.TxStatus.Pending
+        ), "Cannot start node. Last transaction is in pending."
+
         async with self._tx_lock:
+            node_status = (await self.state_cache.get_node_state()).status
+            assert (
+                node_status == models.NodeStatus.Stopped
+            ), "Cannot start node. Node is not stopped."
             tx_status = (await self.state_cache.get_tx_state()).status
             assert (
                 tx_status != models.TxStatus.Pending
@@ -312,11 +338,20 @@ class NodeStateManager(object):
         assert (
             node_status == models.NodeStatus.Running
         ), "Cannot stop node. Node is not running."
+        tx_status = (await self.state_cache.get_tx_state()).status
+        assert (
+            tx_status != models.TxStatus.Pending
+        ), "Cannot start node. Last transaction is in pending."
         async with self._tx_lock:
+            node_status = (await self.state_cache.get_node_state()).status
+            assert (
+                node_status == models.NodeStatus.Running
+            ), "Cannot stop node. Node is not running."
             tx_status = (await self.state_cache.get_tx_state()).status
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
+
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
             async with self._wrap_tx_error():
@@ -339,11 +374,20 @@ class NodeStateManager(object):
         assert (
             node_status == models.NodeStatus.Running
         ), "Cannot stop node. Node is not running."
+        tx_status = (await self.state_cache.get_tx_state()).status
+        assert (
+            tx_status != models.TxStatus.Pending
+        ), "Cannot start node. Last transaction is in pending."
         async with self._tx_lock:
+            node_status = (await self.state_cache.get_node_state()).status
+            assert (
+                node_status == models.NodeStatus.Running
+            ), "Cannot stop node. Node is not running."
             tx_status = (await self.state_cache.get_tx_state()).status
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
+
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
             async with self._wrap_tx_error():
@@ -365,7 +409,15 @@ class NodeStateManager(object):
         assert (
             node_status == models.NodeStatus.Paused
         ), "Cannot stop node. Node is not running."
+        tx_status = (await self.state_cache.get_tx_state()).status
+        assert (
+            tx_status != models.TxStatus.Pending
+        ), "Cannot start node. Last transaction is in pending."
         async with self._tx_lock:
+            node_status = (await self.state_cache.get_node_state()).status
+            assert (
+                node_status == models.NodeStatus.Paused
+            ), "Cannot stop node. Node is not running."
             tx_status = (await self.state_cache.get_tx_state()).status
             assert (
                 tx_status != models.TxStatus.Pending
