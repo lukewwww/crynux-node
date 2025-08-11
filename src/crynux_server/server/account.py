@@ -4,8 +4,8 @@ from anyio import create_task_group, get_cancelled_exc_class, sleep, ExceptionGr
 from pydantic import BaseModel
 
 from crynux_server.config import wait_privkey
-from crynux_server.relay import get_relay
 from crynux_server.utils import get_address_from_privkey
+from crynux_server.contracts import get_contracts
 
 _logger = logging.getLogger(__name__)
 
@@ -25,14 +25,15 @@ async def update_account_info(interval: int):
 
     while True:
         try:
-            relay = get_relay()
+            contracts = get_contracts()
 
             async def _update_balance():
-                _account_info.balance = str(await relay.get_balance())
+                _account_info.balance = str(await contracts.get_balance(contracts.account))
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
-                _account_info.staking = str(await relay.get_staking_amount())
+                staking_info = await contracts.node_staking_contract.get_staking_info(contracts.account)
+                _account_info.staking = str(staking_info.staked_balance + staking_info.staked_credits)
                 _logger.debug(f"staking: {_account_info.staking}")
 
             async with create_task_group() as tg:

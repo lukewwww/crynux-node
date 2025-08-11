@@ -1,8 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional, List
+from typing import List, Optional
 
-from anyio import CancelScope, fail_after, get_cancelled_exc_class, sleep
+from anyio import Lock, fail_after, get_cancelled_exc_class, sleep, CancelScope
 from web3 import Web3
 
 from crynux_server import models
@@ -29,7 +29,11 @@ class NodeStateManager(object):
         self.download_model_cache = download_model_cache
         self.contracts = contracts
         self.relay = relay
-        self._cancel_scope: Optional[CancelScope] = None
+
+        self._tx_lock = Lock()
+
+        self._auto_unstake_scope = None
+        self._sync_node_status_scope = None
 
     async def _get_node_status(self):
         node_info = await self.relay.node_get_node_info()
@@ -77,13 +81,12 @@ class NodeStateManager(object):
             if local_status == models.NodeStatus.Paused:
                 break
 
-    async def start_sync(self, interval: float = 5):
-        assert self._cancel_scope is None, "NodeStateManager has started synchronizing."
+    async def sync_node_status(self, interval: float = 5):
+        assert self._sync_node_status_scope is None
 
         try:
             with CancelScope() as scope:
-                self._cancel_scope = scope
-
+                self._sync_node_status_scope = scope
                 while True:
                     node_info = await self.relay.node_get_node_info()
                     remote_status = node_info.status
@@ -99,11 +102,40 @@ class NodeStateManager(object):
                     await self.state_cache.set_node_score_state(node_score_state)
                     await sleep(interval)
         finally:
-            self._cancel_scope = None
+            self._sync_node_status_scope = None
+
+    async def auto_unstake(self, interval: float = 5):
+        assert self._auto_unstake_scope is None
+
+        try:
+            with CancelScope() as scope:
+                self._auto_unstake_scope = scope
+                while True:
+                    node_status = (await self.state_cache.get_node_state()).status
+                    tx_status = (await self.state_cache.get_tx_state()).status
+                    if node_status == models.NodeStatus.Stopped:
+                        node_staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
+                        staking_amount = node_staking_info.staked_balance + node_staking_info.staked_credits
+                        if staking_amount > 0 and node_staking_info.is_locked:
+                            async with self._tx_lock:
+                                if tx_status == models.TxStatus.Pending:
+                                    continue
+                                await self.state_cache.set_tx_state(models.TxStatus.Pending)
+                                async with self._wrap_tx_error():
+                                    waiter = await self.contracts.node_staking_contract.unstake()
+                                    await waiter.wait()
+                                    await self.state_cache.set_tx_state(models.TxStatus.Success)
+                    await sleep(interval)
+        finally:
+            self._auto_unstake_scope = None
 
     def stop_sync(self):
-        if self._cancel_scope is not None and not self._cancel_scope.cancel_called:
-            self._cancel_scope.cancel()
+        if self._sync_node_status_scope is not None:
+            self._sync_node_status_scope.cancel()
+
+    def stop_auto_unstake(self):
+        if self._auto_unstake_scope is not None:
+            self._auto_unstake_scope.cancel()
 
     @asynccontextmanager
     async def _wrap_tx_error(self):
@@ -124,7 +156,7 @@ class NodeStateManager(object):
             raise
 
     async def try_start(
-        self, gpu_name: str, gpu_vram: int, version: List[int], interval: float = 5, *, option: "Optional[TxOption]" = None
+        self, gpu_name: str, gpu_vram: int, version: List[int], *, option: "Optional[TxOption]" = None
     ):
         _logger.info("Trying to join the network automatically...")
         while True:
@@ -143,46 +175,75 @@ class NodeStateManager(object):
 
             elif status == models.ChainNodeStatus.QUIT:
                 staking_amount = Web3.to_wei(get_staking_amount(), "ether")
-                balance = await self.relay.get_balance()
-                if balance < staking_amount:
+                balance = await self.contracts.get_balance(self.contracts.account)
+                credits = await self.contracts.credits_contract.get_credits(self.contracts.account)
+                total_balance = balance + credits
+                if total_balance < staking_amount + Web3.to_wei(0.001, "ether"):
                     raise ValueError("Node token balance is not enough to join")
-                download_models = await self.download_model_cache.load_all()
-                model_ids = [model.model.to_model_id() for model in download_models]
-                await self.relay.node_join(
-                    gpu_name=gpu_name,
-                    gpu_vram=gpu_vram,
-                    version=".".join(str(v) for v in version),
-                    model_ids=model_ids,
-                    staking_amount=staking_amount,
-                )
-                # update tx state to avoid the web user controlling node status by api
-                # it's the same in try_stop method
-                await self._wait_for_running()
+                
+                if credits < staking_amount:
+                    staked_credits = credits
+                    staked_balance = staking_amount - credits
+                else:
+                    staked_credits = staking_amount
+                    staked_balance = 0
+                
+                async with self._tx_lock:
+                    tx_status = (await self.state_cache.get_tx_state()).status
+                    if tx_status == models.TxStatus.Pending:
+                        continue
+                    await self.state_cache.set_tx_state(models.TxStatus.Pending)
+                    async with self._wrap_tx_error():
+                        waiter = await self.contracts.node_staking_contract.stake(staked_balance, staked_credits, option=option)
+                        await waiter.wait()
+
+                        download_models = await self.download_model_cache.load_all()
+                        model_ids = [model.model.to_model_id() for model in download_models]
+                        await self.relay.node_join(
+                            gpu_name=gpu_name,
+                            gpu_vram=gpu_vram,
+                            version=".".join(str(v) for v in version),
+                            model_ids=model_ids,
+                            staking_amount=staking_amount,
+                        )
+                        # update tx state to avoid the web user controlling node status by api
+                        # it's the same in try_stop method
+                        await self._wait_for_running()
             elif status == models.ChainNodeStatus.PAUSED:
-                await self.relay.node_resume()
-                await self._wait_for_running()
+                async with self._tx_lock:
+                    tx_status = (await self.state_cache.get_tx_state()).status
+                    if tx_status == models.TxStatus.Pending:
+                        continue
+                    await self.state_cache.set_tx_state(models.TxStatus.Pending)
+                    async with self._wrap_tx_error():
+                        await self.relay.node_resume()
+                        await self._wait_for_running()
 
             _logger.info("Node joins in the network successfully.")
             break
 
     async def try_stop(self, *, option: "Optional[TxOption]" = None):
-        node_info = await self.relay.node_get_node_info()
-        status = node_info.status
-        if status == models.ChainNodeStatus.AVAILABLE:
-            await self.relay.node_quit()
-
-            await self.state_cache.set_tx_state(models.TxStatus.Pending)
-            await self._wait_for_stop()
-            # dont need to update node status because in non-headless mode the sync-state method will update it,
-            # and in headless mode the node status is useless
-            await self.state_cache.set_tx_state(models.TxStatus.Success)
-            _logger.info("Node leaves the network successfully.")
-        elif status == models.ChainNodeStatus.QUIT:
-            _logger.info("Node has already left the network.")
-        else:
-            _logger.info(
-                f"Node status is {models.convert_node_status(status)}, cannot leave the network automatically"
-            )
+        while True:
+            node_info = await self.relay.node_get_node_info()
+            status = node_info.status
+            if status == models.ChainNodeStatus.AVAILABLE:
+                async with self._tx_lock:
+                    tx_status = (await self.state_cache.get_tx_state()).status
+                    if tx_status == models.TxStatus.Pending:
+                        continue
+                    await self.state_cache.set_tx_state(models.TxStatus.Pending)
+                    async with self._wrap_tx_error():
+                        await self.relay.node_quit()
+                        await self._wait_for_stop()
+                _logger.info("Node leaves the network successfully.")
+            elif status == models.ChainNodeStatus.QUIT:
+                _logger.info("Node has already left the network.")
+            else:
+                _logger.info(
+                    f"Node status is {models.convert_node_status(status)}, cannot leave the network automatically"
+                )
+            
+            return
 
     async def start(
         self,
@@ -192,114 +253,134 @@ class NodeStateManager(object):
         *,
         option: "Optional[TxOption]" = None,
     ):
-        async with self._wrap_tx_error():
-            node_status = (await self.state_cache.get_node_state()).status
+        node_status = (await self.state_cache.get_node_state()).status
+        assert (
+            node_status == models.NodeStatus.Stopped
+        ), "Cannot start node. Node is not stopped."
+        async with self._tx_lock:
             tx_status = (await self.state_cache.get_tx_state()).status
-            assert (
-                node_status == models.NodeStatus.Stopped
-            ), "Cannot start node. Node is not stopped."
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
-
-            staking_amount = Web3.to_wei(get_staking_amount(), "ether")
-            balance = await self.relay.get_balance()
-            if balance < staking_amount:
-                raise ValueError("Node token balance is not enough to join.")
-
-            download_models = await self.download_model_cache.load_all()
-            model_ids = [model.model.to_model_id() for model in download_models]
-            await self.relay.node_join(
-                gpu_name=gpu_name,
-                gpu_vram=gpu_vram,
-                model_ids=model_ids,
-                version=".".join(str(v) for v in version),
-                staking_amount=staking_amount,
-            )
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
-        async def wait():
+            node_staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
+            current_staking_amount = node_staking_info.staked_balance + node_staking_info.staked_credits
+            assert current_staking_amount == 0, "Node is already staked"
+
+            staking_amount = Web3.to_wei(get_staking_amount(), "ether")
+            balance = await self.contracts.get_balance(self.contracts.account)
+            credits = await self.contracts.credits_contract.get_credits(self.contracts.account)
+            total_balance = balance + credits
+            if total_balance < staking_amount + Web3.to_wei(0.001, "ether"):
+                raise ValueError("Node token balance is not enough to join")
+            
+            if credits < staking_amount:
+                staked_credits = credits
+                staked_balance = staking_amount - credits
+            else:
+                staked_credits = staking_amount
+                staked_balance = 0
+                
             async with self._wrap_tx_error():
-                # await waiter.wait()
+                waiter = await self.contracts.node_staking_contract.stake(staked_balance, staked_credits, option=option)
 
-                await self._wait_for_running()
+                async def wait():
+                    async with self._tx_lock:
+                        async with self._wrap_tx_error():
+                            await waiter.wait()
 
-        return wait
+                            download_models = await self.download_model_cache.load_all()
+                            model_ids = [model.model.to_model_id() for model in download_models]
+                            await self.relay.node_join(
+                                gpu_name=gpu_name,
+                                gpu_vram=gpu_vram,
+                                model_ids=model_ids,
+                                version=".".join(str(v) for v in version),
+                                staking_amount=staking_amount,
+                            )
+                            await self._wait_for_running()
+
+                return wait
 
     async def stop(
         self,
         *,
         option: "Optional[TxOption]" = None,
     ):
-        async with self._wrap_tx_error():
-            node_status = (await self.state_cache.get_node_state()).status
+        node_status = (await self.state_cache.get_node_state()).status
+        assert (
+            node_status == models.NodeStatus.Running
+        ), "Cannot stop node. Node is not running."
+        async with self._tx_lock:
             tx_status = (await self.state_cache.get_tx_state()).status
-            assert (
-                node_status == models.NodeStatus.Running
-            ), "Cannot stop node. Node is not running."
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
-
-            await self.relay.node_quit()
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
-        async def wait():
             async with self._wrap_tx_error():
 
-                await self._wait_for_stop()
+                await self.relay.node_quit()
 
-        return wait
+            async def wait():
+                async with self._tx_lock:
+                    async with self._wrap_tx_error():
+                        await self._wait_for_stop()
+
+            return wait
 
     async def pause(
         self,
         *,
         option: "Optional[TxOption]" = None,
     ):
-        async with self._wrap_tx_error():
-            node_status = (await self.state_cache.get_node_state()).status
+        node_status = (await self.state_cache.get_node_state()).status
+        assert (
+            node_status == models.NodeStatus.Running
+        ), "Cannot stop node. Node is not running."
+        async with self._tx_lock:
             tx_status = (await self.state_cache.get_tx_state()).status
-            assert (
-                node_status == models.NodeStatus.Running
-            ), "Cannot stop node. Node is not running."
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
-
-            await self.relay.node_pause()
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
-        async def wait():
             async with self._wrap_tx_error():
+                await self.relay.node_pause()
 
-                await self._wait_for_pause()
+                async def wait():
+                    async with self._tx_lock:
+                        async with self._wrap_tx_error():
+                            await self._wait_for_pause()
 
-        return wait
+                return wait
 
     async def resume(
         self,
         *,
         option: "Optional[TxOption]" = None,
     ):
-        async with self._wrap_tx_error():
-            node_status = (await self.state_cache.get_node_state()).status
+        node_status = (await self.state_cache.get_node_state()).status
+        assert (
+            node_status == models.NodeStatus.Paused
+        ), "Cannot stop node. Node is not running."
+        async with self._tx_lock:
             tx_status = (await self.state_cache.get_tx_state()).status
-            assert (
-                node_status == models.NodeStatus.Paused
-            ), "Cannot stop node. Node is not running."
             assert (
                 tx_status != models.TxStatus.Pending
             ), "Cannot start node. Last transaction is in pending."
-
-            await self.relay.node_resume()
             await self.state_cache.set_tx_state(models.TxStatus.Pending)
 
-        async def wait():
             async with self._wrap_tx_error():
+                await self.relay.node_resume()
 
-                await self._wait_for_running()
+            async def wait():
+                async with self._tx_lock:
+                    async with self._wrap_tx_error():
+                        await self._wait_for_running()
 
-        return wait
+            return wait
 
 
 _default_state_manager: Optional[NodeStateManager] = None

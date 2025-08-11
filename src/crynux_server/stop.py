@@ -45,11 +45,8 @@ async def _stop(
                 privkey=config.ethereum.privkey,
             )
             await contracts.init(
-                node_contract_address=config.ethereum.contract.node,
-                task_contract_address=config.ethereum.contract.task,
-                qos_contract_address=config.ethereum.contract.qos,
-                task_queue_contract_address=config.ethereum.contract.task_queue,
-                netstats_contract_address=config.ethereum.contract.netstats,
+                credits_contract_address=config.ethereum.contract.credits,
+                node_staking_contract_address=config.ethereum.contract.node_staking,
             )
         if relay is None:
             assert base_url is not None

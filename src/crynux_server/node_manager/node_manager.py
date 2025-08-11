@@ -41,19 +41,13 @@ async def _make_contracts(
     provider: str,
     timeout: int,
     rps: int,
-    node_contract_address: str,
-    task_contract_address: str,
-    qos_contract_address: Optional[str],
-    task_queue_contract_address: Optional[str],
-    netstats_contract_address: Optional[str],
+    credits_contract_address: Optional[str],
+    node_staking_contract_address: Optional[str],
 ) -> Contracts:
     contracts = Contracts(provider_path=provider, privkey=privkey, timeout=timeout, rps=rps)
     await contracts.init(
-        node_contract_address=node_contract_address,
-        task_contract_address=task_contract_address,
-        qos_contract_address=qos_contract_address,
-        task_queue_contract_address=task_queue_contract_address,
-        netstats_contract_address=netstats_contract_address,
+        credits_contract_address=credits_contract_address,
+        node_staking_contract_address=node_staking_contract_address,
     )
     await set_contracts(contracts)
     return contracts
@@ -199,11 +193,8 @@ class NodeManager(object):
                     provider=self.config.ethereum.provider,
                     timeout=self.config.ethereum.timeout,
                     rps=self.config.ethereum.rps,
-                    node_contract_address=self.config.ethereum.contract.node,
-                    task_contract_address=self.config.ethereum.contract.task,
-                    qos_contract_address=self.config.ethereum.contract.qos,
-                    task_queue_contract_address=self.config.ethereum.contract.task_queue,
-                    netstats_contract_address=self.config.ethereum.contract.netstats,
+                    credits_contract_address=self.config.ethereum.contract.credits,
+                    node_staking_contract_address=self.config.ethereum.contract.node_staking,
                 )
             if self._relay is None:
                 self._relay = _make_relay(self._privkey, self.config.relay_url)
@@ -400,8 +391,7 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Running
                         )
-                        await self.state_cache.set_tx_state(models.TxStatus.Success)
-                    await self._node_state_manager.start_sync()
+                    await self._node_state_manager.sync_node_status()
                 except Exception as e:
                     _logger.exception(e)
                     _logger.error("Cannot sync node state from chain, retrying")
@@ -409,6 +399,31 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Error,
                             message="Node manager running error: cannot sync node state from chain, retrying...",
+                        )
+                    raise
+
+    async def _auto_unstake(self):
+        assert self._node_state_manager is not None
+
+        async for attemp in AsyncRetrying(
+            stop=stop_never if self._retry else stop_after_attempt(1),
+            wait=wait_fixed(self._retry_delay),
+            reraise=True,
+        ):
+            with attemp:
+                try:
+                    if attemp.retry_state.attempt_number > 0:
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Running
+                        )
+                    await self._node_state_manager.auto_unstake()
+                except Exception as e:
+                    _logger.exception(e)
+                    _logger.error("Cannot auto unstake, retrying")
+                    with fail_after(5, shield=True):
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Error,
+                            message="Node manager running error: cannot auto unstake, retrying...",
                         )
                     raise
 
@@ -475,7 +490,6 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Running
                         )
-                        await self.state_cache.set_tx_state(models.TxStatus.Success)
                     async with create_task_group() as tg:
                         if not task_status_set:
                             await tg.start(self._watcher.start)
@@ -639,34 +653,30 @@ class NodeManager(object):
                     await sleep(5)
 
                 await tg.start(self._watch_events)
+                tg.start_soon(self._auto_unstake)
 
                 assert self._node_state_manager is not None
 
-                try:
-                    await self.state_cache.set_node_state(
-                        status=models.NodeStatus.Init,
-                        init_message="Joining the network",
-                    )
-                    async for attemp in AsyncRetrying(
-                        stop=stop_never if self._retry else stop_after_attempt(1),
-                        wait=wait_fixed(self._retry_delay),
-                        reraise=True,
-                    ):
-                        with attemp:
-                            try:
-                                await self._node_state_manager.try_start(
-                                    gpu_name=self.gpu_name + "+" + self.platform,
-                                    gpu_vram=self.gpu_vram,
-                                    version=version_list,
-                                )
-                            except Exception as e:
-                                _logger.warning(e)
-                                _logger.info("Cannot auto join the network")
-                                raise e
-                finally:
-                    tx_status = (await self.state_cache.get_tx_state()).status
-                    if tx_status == models.TxStatus.Pending:
-                        await self.state_cache.set_tx_state(models.TxStatus.Success)
+                await self.state_cache.set_node_state(
+                    status=models.NodeStatus.Init,
+                    init_message="Joining the network",
+                )
+                async for attemp in AsyncRetrying(
+                    stop=stop_never if self._retry else stop_after_attempt(1),
+                    wait=wait_fixed(self._retry_delay),
+                    reraise=True,
+                ):
+                    with attemp:
+                        try:
+                            await self._node_state_manager.try_start(
+                                gpu_name=self.gpu_name + "+" + self.platform,
+                                gpu_vram=self.gpu_vram,
+                                version=version_list,
+                            )
+                        except Exception as e:
+                            _logger.warning(e)
+                            _logger.info("Cannot auto join the network")
+                            raise e
 
                 tg.start_soon(self._sync_state)
                 tg.start_soon(self._update_version)
@@ -702,6 +712,7 @@ class NodeManager(object):
                     with move_on_after(10, shield=True):
                         await self._node_state_manager.try_stop()
                     self._node_state_manager.stop_sync()
+                    self._node_state_manager.stop_auto_unstake()
                     self._node_state_manager = None
 
                 if self._tg is not None and not self._tg.cancel_scope.cancel_called:

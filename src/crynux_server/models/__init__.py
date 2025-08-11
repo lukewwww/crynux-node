@@ -4,7 +4,7 @@ from .event import (EventType, Event, DownloadModel, TaskEndAborted, TaskEndGrou
                     TaskErrorReported, TaskScoreReady, TaskStarted,
                     TaskValidated, NodeKickedOut, NodeSlashed, load_event)
 from .node import (ChainNetworkNodeInfo, ChainNodeInfo, ChainNodeStatus, NodeInfo,
-                   GpuInfo, NodeState, NodeStatus, convert_node_status, NodeScoreState)
+                   GpuInfo, NodeState, NodeStatus, convert_node_status, NodeScoreState, ChainNodeStakingInfo)
 from .task import (ChainTask, DownloadTaskState, DownloadTaskStatus,
                    InferenceTaskState, InferenceTaskStatus, RelayTask,
                    TaskAbortReason, TaskError, TaskType)
@@ -39,6 +39,7 @@ __all__ = [
     "convert_node_status",
     "NodeState",
     "NodeScoreState",
+    "ChainNodeStakingInfo",
     "TaskType",
     "InferenceTaskStatus",
     "InferenceTaskState",

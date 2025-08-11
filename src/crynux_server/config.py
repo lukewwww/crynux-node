@@ -130,11 +130,8 @@ class DBConfig(BaseModel):
 
 
 class Contract(BaseModel):
-    node: str
-    task: str
-    qos: Optional[str] = None
-    task_queue: Optional[str] = None
-    netstats: Optional[str] = None
+    credits: str
+    node_staking: str
 
 
 class Ethereum(BaseModel):
