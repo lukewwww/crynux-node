@@ -41,11 +41,13 @@ async def _make_contracts(
     provider: str,
     timeout: int,
     rps: int,
+    benefit_address_contract_address: Optional[str],
     credits_contract_address: Optional[str],
     node_staking_contract_address: Optional[str],
 ) -> Contracts:
     contracts = Contracts(provider_path=provider, privkey=privkey, timeout=timeout, rps=rps)
     await contracts.init(
+        benefit_address_contract_address=benefit_address_contract_address,
         credits_contract_address=credits_contract_address,
         node_staking_contract_address=node_staking_contract_address,
     )
@@ -193,6 +195,7 @@ class NodeManager(object):
                     provider=self.config.ethereum.provider,
                     timeout=self.config.ethereum.timeout,
                     rps=self.config.ethereum.rps,
+                    benefit_address_contract_address=self.config.ethereum.contract.benefit_address,
                     credits_contract_address=self.config.ethereum.contract.credits,
                     node_staking_contract_address=self.config.ethereum.contract.node_staking,
                 )
@@ -399,31 +402,6 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Error,
                             message="Node manager running error: cannot sync node state from chain, retrying...",
-                        )
-                    raise
-
-    async def _auto_unstake(self):
-        assert self._node_state_manager is not None
-
-        async for attemp in AsyncRetrying(
-            stop=stop_never if self._retry else stop_after_attempt(1),
-            wait=wait_fixed(self._retry_delay),
-            reraise=True,
-        ):
-            with attemp:
-                try:
-                    if attemp.retry_state.attempt_number > 0:
-                        await self.state_cache.set_node_state(
-                            status=models.NodeStatus.Running
-                        )
-                    await self._node_state_manager.auto_unstake()
-                except Exception as e:
-                    _logger.exception(e)
-                    _logger.error("Cannot auto unstake, retrying")
-                    with fail_after(5, shield=True):
-                        await self.state_cache.set_node_state(
-                            status=models.NodeStatus.Error,
-                            message="Node manager running error: cannot auto unstake, retrying...",
                         )
                     raise
 
@@ -653,7 +631,6 @@ class NodeManager(object):
                     await sleep(5)
 
                 await tg.start(self._watch_events)
-                tg.start_soon(self._auto_unstake)
 
                 assert self._node_state_manager is not None
 
@@ -712,7 +689,6 @@ class NodeManager(object):
                     with move_on_after(10, shield=True):
                         await self._node_state_manager.try_stop()
                     self._node_state_manager.stop_sync()
-                    self._node_state_manager.stop_auto_unstake()
                     self._node_state_manager = None
 
                 if self._tg is not None and not self._tg.cancel_scope.cancel_called:

@@ -15,8 +15,6 @@ if TYPE_CHECKING:
 __all__ = ["NodeStakingContract"]
 
 
-_default_stake_amount = Web3.to_wei(400, "ether")
-
 
 class NodeStakingContract(ContractWrapper):
     def __init__(
@@ -56,7 +54,6 @@ class NodeStakingContract(ContractWrapper):
             node_address=res[0],
             staked_balance=res[1],
             staked_credits=res[2],
-            is_locked=res[3],
         )
 
     async def get_all_node_addresses(
@@ -69,52 +66,29 @@ class NodeStakingContract(ContractWrapper):
 
     async def stake(
         self,
-        staked_balance: int,
-        staked_credits: int,
+        staked_amount: int,
         *,
+        value: Optional[int] = None,
         option: "Optional[TxOption]" = None,
         w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
             "stake",
-            stakedBalance=staked_balance,
-            stakedCredits=staked_credits,
+            stakedAmount=staked_amount,
+            value=value,
             option=option,
             w3=w3,
         )
 
     async def unstake(
-        self, *, option: "Optional[TxOption]" = None, w3: Optional[AsyncWeb3] = None
+        self,
+        node_address: str,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
             "unstake",
-            option=option,
-            w3=w3,
-        )
-
-    async def lock_staking(
-        self,
-        node_address: ChecksumAddress,
-        *,
-        option: "Optional[TxOption]" = None,
-        w3: Optional[AsyncWeb3] = None,
-    ):
-        return await self._transaction_call(
-            "lockStaking",
-            nodeAddress=node_address,
-            option=option,
-            w3=w3,
-        )
-
-    async def unlock_staking(
-        self,
-        node_address: ChecksumAddress,
-        *,
-        option: "Optional[TxOption]" = None,
-        w3: Optional[AsyncWeb3] = None,
-    ):
-        return await self._transaction_call(
-            "unlockStaking",
             nodeAddress=node_address,
             option=option,
             w3=w3,

@@ -12,7 +12,7 @@ from web3.types import TxParams, TxReceipt, BlockIdentifier, BlockData
 
 from crynux_server.config import TxOption
 
-from . import credits, node_staking
+from . import benefit_address, credits, node_staking
 from .exceptions import TxRevertedError
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
@@ -37,6 +37,7 @@ class ProviderType(IntEnum):
 
 
 class Contracts(object):
+    benefit_address_contract: benefit_address.BenefitAddressContract
     credits_contract: credits.CreditsContract
     node_staking_contract: node_staking.NodeStakingContract
 
@@ -58,7 +59,7 @@ class Contracts(object):
             provider_path=provider_path,
             pool_size=pool_size,
             timeout=timeout,
-            rps=rps
+            rps=rps,
         )
 
         self._initialized = False
@@ -67,6 +68,7 @@ class Contracts(object):
     async def init(
         self,
         credits_contract_address: Optional[str] = None,
+        benefit_address_contract_address: Optional[str] = None,
         node_staking_contract_address: Optional[str] = None,
         *,
         option: "Optional[TxOption]" = None,
@@ -77,8 +79,29 @@ class Contracts(object):
                 self._account = w3.eth.default_account
                 _logger.info(f"Wallet address is {w3.eth.default_account}")
 
+                if benefit_address_contract_address is not None:
+                    self.benefit_address_contract = (
+                        benefit_address.BenefitAddressContract(
+                            self._w3_pool,
+                            w3.to_checksum_address(benefit_address_contract_address),
+                        )
+                    )
+                else:
+                    self.benefit_address_contract = (
+                        benefit_address.BenefitAddressContract(self._w3_pool)
+                    )
+                    waiter = await self.benefit_address_contract.deploy(
+                        option=option, w3=w3
+                    )
+                    await waiter.wait(w3=w3)
+                    benefit_address_contract_address = (
+                        self.benefit_address_contract.address
+                    )
+
                 if credits_contract_address is not None:
-                    self.credits_contract = credits.CreditsContract(self._w3_pool, w3.to_checksum_address(credits_contract_address))
+                    self.credits_contract = credits.CreditsContract(
+                        self._w3_pool, w3.to_checksum_address(credits_contract_address)
+                    )
                 else:
                     self.credits_contract = credits.CreditsContract(self._w3_pool)
                     waiter = await self.credits_contract.deploy(option=option, w3=w3)
@@ -86,14 +109,26 @@ class Contracts(object):
                     credits_contract_address = self.credits_contract.address
 
                 if node_staking_contract_address is not None:
-                    self.node_staking_contract = node_staking.NodeStakingContract(self._w3_pool, w3.to_checksum_address(node_staking_contract_address))
+                    self.node_staking_contract = node_staking.NodeStakingContract(
+                        self._w3_pool,
+                        w3.to_checksum_address(node_staking_contract_address),
+                    )
                 else:
-                    self.node_staking_contract = node_staking.NodeStakingContract(self._w3_pool)
-                    waiter = await self.node_staking_contract.deploy(credits_contract_address, option=option, w3=w3)
+                    self.node_staking_contract = node_staking.NodeStakingContract(
+                        self._w3_pool
+                    )
+                    waiter = await self.node_staking_contract.deploy(
+                        credits_contract_address,
+                        benefit_address_contract_address,
+                        option=option,
+                        w3=w3,
+                    )
                     await waiter.wait(w3=w3)
                     node_staking_contract_address = self.node_staking_contract.address
 
-                waiter = await self.credits_contract.set_staking_address(self.node_staking_contract.address, option=option, w3=w3)
+                waiter = await self.credits_contract.set_staking_address(
+                    self.node_staking_contract.address, option=option, w3=w3
+                )
                 await waiter.wait(w3=w3)
 
                 self._initialized = True
@@ -153,11 +188,11 @@ class Contracts(object):
     @property
     def account(self) -> ChecksumAddress:
         return self._w3_pool.account
-    
+
     @property
     def public_key(self) -> PublicKey:
         return self._w3_pool.public_key
-    
+
     @property
     def private_key(self) -> PrivateKey:
         return self._w3_pool._privkey
@@ -170,7 +205,7 @@ class Contracts(object):
         async with await self._w3_pool.get() as w3:
             block = await w3.eth.get_block(block_identifier=block_identifier)
             return block
-        
+
     async def get_tx_receipt(self, tx_hash: HexBytes) -> TxReceipt:
         async with await self._w3_pool.get() as w3:
             receipt = await w3.eth.get_transaction_receipt(tx_hash)
@@ -194,7 +229,21 @@ class Contracts(object):
             tx_hash = await w3.eth.send_transaction(opt)
             receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
             return receipt
-
+        
+    async def stake(self, amount: int, *, option: "Optional[TxOption]" = None):
+        async with await self._w3_pool.get() as w3:
+            value: Optional[int] = None
+            current_staking_info = await self.node_staking_contract.get_staking_info(
+                self._w3_pool.account, w3=w3
+            )
+            current_staking_amount = current_staking_info.staked_balance + current_staking_info.staked_credits
+            if amount > current_staking_amount:
+                diff = amount - current_staking_amount
+                stakable_credits = await self.credits_contract.get_credits(self._w3_pool.account, w3=w3)
+                if stakable_credits < diff:
+                    value = diff - stakable_credits
+            
+            return await self.node_staking_contract.stake(amount, value=value, option=option, w3=w3)
 
 _default_contracts: Optional[Contracts] = None
 

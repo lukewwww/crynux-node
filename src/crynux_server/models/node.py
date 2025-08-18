@@ -89,4 +89,3 @@ class ChainNodeStakingInfo(BaseModel):
     node_address: str
     staked_balance: int
     staked_credits: int
-    is_locked: bool

@@ -15,8 +15,6 @@ if TYPE_CHECKING:
 __all__ = ["CreditsContract"]
 
 
-_default_stake_amount = Web3.to_wei(400, "ether")
-
 
 class CreditsContract(ContractWrapper):
     def __init__(

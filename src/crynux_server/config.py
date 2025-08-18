@@ -130,6 +130,7 @@ class DBConfig(BaseModel):
 
 
 class Contract(BaseModel):
+    benefit_address: str
     credits: str
     node_staking: str
 
