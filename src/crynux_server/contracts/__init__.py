@@ -232,7 +232,7 @@ class Contracts(object):
         
     async def stake(self, amount: int, *, option: "Optional[TxOption]" = None):
         async with await self._w3_pool.get() as w3:
-            value: Optional[int] = None
+            value = 0
             current_staking_info = await self.node_staking_contract.get_staking_info(
                 self._w3_pool.account, w3=w3
             )
