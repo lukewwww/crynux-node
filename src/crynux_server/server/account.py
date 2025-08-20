@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from crynux_server.config import wait_privkey
 from crynux_server.utils import get_address_from_privkey
 from crynux_server.contracts import get_contracts
+from crynux_server.relay import get_relay
 
 _logger = logging.getLogger(__name__)
 
@@ -26,9 +27,12 @@ async def update_account_info(interval: int):
     while True:
         try:
             contracts = get_contracts()
+            relay = get_relay()
 
             async def _update_balance():
-                _account_info.balance = str(await contracts.get_balance(contracts.account))
+                chain_balance = await contracts.get_balance(contracts.account)
+                relay_balance = await relay.get_balance()
+                _account_info.balance = str(chain_balance + relay_balance)
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
