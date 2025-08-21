@@ -96,12 +96,14 @@ def _make_task_system(
 
 
 def _make_node_state_manager(
+    config: Config,
     state_cache: ManagerStateCache,
     download_model_cache: DownloadModelCache,
     contracts: Contracts,
     relay: Relay,
 ):
     state_manager = NodeStateManager(
+        config=config,
         state_cache=state_cache,
         download_model_cache=download_model_cache,
         contracts=contracts,
@@ -213,6 +215,7 @@ class NodeManager(object):
 
         if self._node_state_manager is None:
             self._node_state_manager = _make_node_state_manager(
+                config=self.config,
                 state_cache=self.state_cache,
                 download_model_cache=self.download_model_cache,
                 contracts=self._contracts,

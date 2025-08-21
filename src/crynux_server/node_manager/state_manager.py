@@ -7,7 +7,7 @@ from tenacity import retry, stop_never, wait_fixed
 from web3 import Web3
 
 from crynux_server import models
-from crynux_server.config import get_staking_amount
+from crynux_server.config import Config, get_staking_amount
 from crynux_server.contracts import Contracts, TxOption
 from crynux_server.contracts.exceptions import TxRevertedError
 from crynux_server.download_model_cache import DownloadModelCache
@@ -27,11 +27,13 @@ class TxSessionError(Exception):
 class NodeStateManager(object):
     def __init__(
         self,
+        config: Config,
         state_cache: ManagerStateCache,
         download_model_cache: DownloadModelCache,
         contracts: Contracts,
         relay: Relay,
     ):
+        self.config = config
         self.state_cache = state_cache
         self.download_model_cache = download_model_cache
         self.contracts = contracts
@@ -204,6 +206,7 @@ class NodeStateManager(object):
                     download_models = await self.download_model_cache.load_all()
                     model_ids = [model.model.to_model_id() for model in download_models]
                     await self.relay.node_join(
+                        network=self.config.ethereum.network,
                         gpu_name=gpu_name,
                         gpu_vram=gpu_vram,
                         version=".".join(str(v) for v in version),
@@ -272,6 +275,7 @@ class NodeStateManager(object):
                     download_models = await self.download_model_cache.load_all()
                     model_ids = [model.model.to_model_id() for model in download_models]
                     await self.relay.node_join(
+                        network=self.config.ethereum.network,
                         gpu_name=gpu_name,
                         gpu_vram=gpu_vram,
                         model_ids=model_ids,

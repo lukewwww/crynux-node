@@ -57,7 +57,7 @@ async def _stop(
                 tx_state_cache_cls=tx_state_cache_cls,
             )
         download_model_cache = download_model_cache_cls()
-        state_manager = NodeStateManager(state_cache=state_cache, download_model_cache=download_model_cache, contracts=contracts, relay=relay)
+        state_manager = NodeStateManager(config=config, state_cache=state_cache, download_model_cache=download_model_cache, contracts=contracts, relay=relay)
 
     try:
         waiter = await state_manager.stop(option=option)

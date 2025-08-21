@@ -313,10 +313,11 @@ class WebRelay(Relay):
 
     @_web_relay_restart_pool_error
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
+        self, network: str, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ):
         input = {
             "address": self.node_address,
+            "network": network,
             "gpu_name": gpu_name,
             "gpu_vram": gpu_vram,
             "model_ids": model_ids,
@@ -327,6 +328,7 @@ class WebRelay(Relay):
         resp = await self.client.post(
             f"/v2/node/{self.node_address}/join",
             json={
+                "network": network,
                 "gpu_name": gpu_name,
                 "gpu_vram": gpu_vram,
                 "model_ids": model_ids,

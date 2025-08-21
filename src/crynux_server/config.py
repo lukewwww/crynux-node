@@ -146,6 +146,8 @@ class Ethereum(BaseModel):
     max_fee_per_gas: Optional[int] = None
     max_priority_fee_per_gas: Optional[int] = None
 
+    network: str
+
     contract: Contract
 
     _privkey_file: str = "private_key.txt"
