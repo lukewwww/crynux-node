@@ -58,8 +58,9 @@ packages:
 actions:
   - trigger: post-packages
     action: |
+      #!/bin/sh
       set -eux
       # The source code is mounted at /crynux-node by distrobuilder.
-      # We make the build script executable and then run it.
+      # The build script must be made executable before running.
       chmod +x /crynux-node/build/lxc/build.sh
       /crynux-node/build/lxc/build.sh
