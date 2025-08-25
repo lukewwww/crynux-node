@@ -43,24 +43,16 @@ jobs:
             chmod +x build/set-config-files.sh
             ./build/set-config-files.sh $BLOCKCHAIN
 
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: '1.23'
-
-      - name: Install build dependencies
+      - name: Install distrobuilder via Snap
         run: |
-          sudo apt-get update
-          sudo apt-get install -y debootstrap gpg squashfs-tools
-
-      - name: Install distrobuilder
-        run: |
-          # Pin to the latest known stable version to ensure reproducible builds.
-          go install github.com/lxc/distrobuilder/distrobuilder@distrobuilder-3.2
+          # Per official documentation, snap is the recommended way to install distrobuilder.
+          # We rely on the snap to be self-contained with its core dependencies.
+          sudo snap install distrobuilder --classic
 
       - name: Build LXC image
         run: |
-          sudo -E $(go env GOPATH)/bin/distrobuilder build-lxc build/lxc/crynux-node.lxc.yaml -o image.architecture=$(dpkg --print-architecture)
+          # The snap installation places distrobuilder directly in the PATH.
+          sudo -E distrobuilder build-lxc build/lxc/crynux-node.lxc.yaml -o image.architecture=$(dpkg --print-architecture)
 
       - name: Change ownership of artifacts
         run: sudo chown runner:runner rootfs.tar.xz lxc.tar.xz
