@@ -9,7 +9,13 @@ source:
   downloader: debootstrap
   url: http://archive.ubuntu.com/ubuntu/
   components: ["main", "universe"]
-  keyring: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+# For distrobuilder v3+, GPG key handling is done by copying the file
+# into the image explicitly, rather than using a 'keyring' property.
+files:
+  - path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
+    source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    perms: "0644"
 
 packages:
   manager: apt
