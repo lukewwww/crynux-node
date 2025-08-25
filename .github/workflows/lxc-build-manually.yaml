@@ -37,9 +37,11 @@ jobs:
           submodules: recursive
 
       - name: Set the config files
+        env:
+          BLOCKCHAIN: ${{ inputs.blockchain || 'dymension' }}
         run: |
             chmod +x build/set-config-files.sh
-            ./build/set-config-files.sh ${{ inputs.blockchain }}
+            ./build/set-config-files.sh $BLOCKCHAIN
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -49,7 +51,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap gpg squashfs-tools
+          # ubuntu-archive-keyring contains the GPG keys for all Ubuntu releases,
+          # which is essential for debootstrap to validate the repository.
+          sudo apt-get install -y debootstrap gpg squashfs-tools ubuntu-archive-keyring
 
       - name: Install distrobuilder
         run: |
