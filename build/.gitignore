@@ -5,6 +5,7 @@ crynux_node/
 !windows/*
 !linux-server/*
 !docker/*
+!lxc/*
 !bump-version.ps1
 !bump-version.sh
 !changelog-template.md

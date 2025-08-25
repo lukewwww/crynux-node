@@ -1,0 +1,16 @@
+[Unit]
+Description=Crynux Node Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/app
+# This combines the Dockerfile's ENTRYPOINT and CMD
+ExecStart=/app/start.sh run
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
