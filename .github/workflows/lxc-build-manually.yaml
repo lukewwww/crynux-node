@@ -43,6 +43,11 @@ jobs:
             chmod +x build/set-config-files.sh
             ./build/set-config-files.sh $BLOCKCHAIN
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap gpg squashfs-tools
+
       - name: Install distrobuilder via Snap
         run: |
           # Per official documentation, snap is the recommended way to install distrobuilder.
