@@ -55,8 +55,8 @@ jobs:
 
       - name: Install distrobuilder
         run: |
-          # Pin to a specific stable version to ensure reproducible builds
-          go install github.com/lxc/distrobuilder/distrobuilder@v2.5
+          # Pin to the latest known stable version to ensure reproducible builds.
+          go install github.com/lxc/distrobuilder/distrobuilder@v2.4
 
       - name: Build LXC image
         run: |
