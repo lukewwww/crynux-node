@@ -2,7 +2,7 @@
 image:
   description: Crynux Node LXC Image
   distribution: ubuntu
-  release: "22.04"
+  release: "jammy"
   architecture: amd64
 
 source:
