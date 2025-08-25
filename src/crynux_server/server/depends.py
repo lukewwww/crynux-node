@@ -4,7 +4,6 @@ from fastapi import Depends
 from typing_extensions import Annotated
 
 from crynux_server.config import Config, get_config
-from crynux_server.contracts import Contracts, get_contracts
 from crynux_server.node_manager import (
     ManagerStateCache,
     NodeStateManager,

@@ -126,10 +126,10 @@ class Contracts(object):
                     await waiter.wait(w3=w3)
                     node_staking_contract_address = self.node_staking_contract.address
 
-                waiter = await self.credits_contract.set_staking_address(
-                    self.node_staking_contract.address, option=option, w3=w3
-                )
-                await waiter.wait(w3=w3)
+                    waiter = await self.credits_contract.set_staking_address(
+                        self.node_staking_contract.address, option=option, w3=w3
+                    )
+                    await waiter.wait(w3=w3)
 
                 self._initialized = True
 
@@ -237,12 +237,15 @@ class Contracts(object):
                 self._w3_pool.account, w3=w3
             )
             current_staking_amount = current_staking_info.staked_balance + current_staking_info.staked_credits
+            if amount == current_staking_amount:
+                return
+            
             if amount > current_staking_amount:
                 diff = amount - current_staking_amount
                 stakable_credits = await self.credits_contract.get_credits(self._w3_pool.account, w3=w3)
                 if stakable_credits < diff:
                     value = diff - stakable_credits
-            
+
             return await self.node_staking_contract.stake(amount, value=value, option=option, w3=w3)
 
 _default_contracts: Optional[Contracts] = None

@@ -1,5 +1,5 @@
 from anyio import to_thread
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from crynux_server.config import get_staking_amount, set_staking_amount

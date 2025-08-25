@@ -383,7 +383,7 @@ class NodeManager(object):
 
         _logger.info("Node manager initializing complete.")
 
-    async def _sync_state(self):
+    async def _sync_node_status(self):
         assert self._node_state_manager is not None
 
         async for attemp in AsyncRetrying(
@@ -397,7 +397,7 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Running
                         )
-                    await self._node_state_manager.sync_node_status()
+                    await self._node_state_manager.start_sync_node_status()
                 except Exception as e:
                     _logger.exception(e)
                     _logger.error("Cannot sync node state from chain, retrying")
@@ -405,6 +405,31 @@ class NodeManager(object):
                         await self.state_cache.set_node_state(
                             status=models.NodeStatus.Error,
                             message="Node manager running error: cannot sync node state from chain, retrying...",
+                        )
+                    raise
+    
+    async def _auto_stake(self):
+        assert self._node_state_manager is not None
+
+        async for attemp in AsyncRetrying(
+            stop=stop_never if self._retry else stop_after_attempt(1),
+            wait=wait_fixed(self._retry_delay),
+            reraise=True,
+        ):
+            with attemp:
+                try:
+                    if attemp.retry_state.attempt_number > 0:
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Running
+                        )
+                    await self._node_state_manager.start_auto_stake()
+                except Exception as e:
+                    _logger.exception(e)
+                    _logger.error("Cannot auto update staking amount, retrying")
+                    with fail_after(5, shield=True):
+                        await self.state_cache.set_node_state(
+                            status=models.NodeStatus.Error,
+                            message="Node manager running error: cannot auto update staking amount, retrying...",
                         )
                     raise
 
@@ -514,6 +539,7 @@ class NodeManager(object):
         node_amount = Web3.to_wei(get_staking_amount(), "ether")
 
         assert self._relay is not None
+        assert self._contracts is not None
         async for attemp in AsyncRetrying(
             stop=stop_never if self._retry else stop_after_attempt(1),
             wait=wait_fixed(self._retry_delay),
@@ -525,8 +551,14 @@ class NodeManager(object):
                     status = node_info.status
                     if status != models.ChainNodeStatus.QUIT:
                         return True
-                    balance = await self._relay.get_balance()
-                    if balance >= node_amount:
+                    balance = await self._contracts.get_balance(self._contracts.account)
+                    credits = await self._contracts.credits_contract.get_credits(
+                        self._contracts.account
+                    )
+                    staking_info = await self._contracts.node_staking_contract.get_staking_info(self._contracts.account)
+                    current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
+                    total_balance = balance + credits
+                    if total_balance + current_staking_amount >= node_amount:
                         return True
                 except Exception as e:
                     _logger.exception(e)
@@ -658,7 +690,8 @@ class NodeManager(object):
                             _logger.info("Cannot auto join the network")
                             raise e
 
-                tg.start_soon(self._sync_state)
+                tg.start_soon(self._sync_node_status)
+                tg.start_soon(self._auto_stake)
                 tg.start_soon(self._update_version)
 
         finally:
@@ -691,7 +724,8 @@ class NodeManager(object):
                 if self._node_state_manager is not None:
                     with move_on_after(10, shield=True):
                         await self._node_state_manager.try_stop()
-                    self._node_state_manager.stop_sync()
+                    self._node_state_manager.stop_sync_node_status()
+                    self._node_state_manager.stop_auto_stake()
                     self._node_state_manager = None
 
                 if self._tg is not None and not self._tg.cancel_scope.cancel_called:

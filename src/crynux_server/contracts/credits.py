@@ -23,28 +23,28 @@ class CreditsContract(ContractWrapper):
 
     async def set_admin_address(
         self,
-        admin_address: ChecksumAddress,
+        addr: ChecksumAddress,
         *,
         option: "Optional[TxOption]" = None,
         w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
             "setAdminAddress",
-            adminAddress=admin_address,
+            addr=addr,
             option=option,
             w3=w3,
         )
 
     async def set_staking_address(
         self,
-        staking_address: ChecksumAddress,
+        addr: ChecksumAddress,
         *,
         option: "Optional[TxOption]" = None,
         w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
             "setStakingAddress",
-            stakingAddress=staking_address,
+            addr=addr,
             option=option,
             w3=w3,
         )
