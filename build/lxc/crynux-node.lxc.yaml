@@ -63,7 +63,7 @@ packages:
         - nodejs
 
 actions:
-  - trigger: post-packages
+  - trigger: post-files
     action: |
       #!/bin/sh
       set -eux
