@@ -22,8 +22,8 @@ files:
     source: build/lxc/crynux-node.service
     mode: "0644"
   - generator: copy
-    path: /source.tar
-    source: source.tar
+    path: /app-source
+    source: .
 
 packages:
   manager: apt
@@ -50,28 +50,20 @@ packages:
         - gnupg
         # For Go
         - git
-    - action: remove
-      packages:
-        - build-essential
-        - python3.10-dev
-        - libssl-dev
-        - libffi-dev
-        - curl
-        - wget
-        - git
-        - gnupg
-        - nodejs
 
 actions:
   - trigger: post-files
     action: |
       #!/bin/sh
       set -eux
-      echo "--- Unpacking source tarball ---"
-      mkdir -p /app-source
-      tar -xf /source.tar -C /app-source --no-same-owner
-      rm /source.tar
-      echo "--------------------------------"
       cd /app-source
       chmod +x ./build/lxc/build.sh
       ./build/lxc/build.sh
+  - trigger: post-files
+    action: |
+      #!/bin/sh
+      set -eux
+      echo "Cleaning up build-time packages..."
+      apt-get remove --purge -y build-essential python3.10-dev libssl-dev libffi-dev curl wget git gnupg nodejs
+      apt-get autoremove -y
+      apt-get clean

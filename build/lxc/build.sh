@@ -81,7 +81,7 @@ export PATH="/app/venv/bin:/usr/local/go/bin:${PATH}"
 export LD_LIBRARY_PATH="/usr/local/cuda-12.3/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 EOF
 
-echo "Cleaning up build-time source and tools..."
+echo "Cleaning up build artifacts..."
 rm -rf /usr/local/go
 sed -i 's|:/usr/local/go/bin||g' /etc/profile.d/crynux.sh
 rm -rf /app-source
