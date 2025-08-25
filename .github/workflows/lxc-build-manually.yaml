@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      BLOCKCHAIN: ${{ inputs.blockchain || 'dymension' }}
 
     steps:
       - name: Maximize build space
@@ -37,8 +39,6 @@ jobs:
           submodules: recursive
 
       - name: Set the config files
-        env:
-          BLOCKCHAIN: ${{ inputs.blockchain || 'dymension' }}
         run: bash build/set-config-files.sh "$BLOCKCHAIN"
 
       - name: Install build dependencies
@@ -70,7 +70,7 @@ jobs:
       - name: Upload LXC image artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lxc-image-${{ inputs.blockchain }}
+          name: lxc-image-${{ env.BLOCKCHAIN }}
           path: |
             rootfs.tar.xz
             meta.tar.xz
