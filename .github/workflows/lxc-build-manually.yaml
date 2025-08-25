@@ -51,9 +51,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          # ubuntu-archive-keyring contains the GPG keys for all Ubuntu releases,
-          # which is essential for debootstrap to validate the repository.
-          sudo apt-get install -y debootstrap gpg squashfs-tools ubuntu-archive-keyring
+          sudo apt-get install -y debootstrap gpg squashfs-tools
 
       - name: Install distrobuilder
         run: |
