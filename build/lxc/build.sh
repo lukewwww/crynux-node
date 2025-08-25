@@ -1,23 +1,22 @@
 #!/bin/bash
 set -eux
 
-echo "Installing Node.js 18 and Yarn for Web UI build..."
+echo "Installing Node.js 18 and setting up Yarn via corepack..."
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 apt-get update
 apt-get install -y nodejs
-# Install yarn via npm
-npm install -g yarn
+# Enable corepack and explicitly activate the latest stable Yarn version.
+corepack enable
+corepack prepare yarn@stable --activate
 
 echo "Building Web UI..."
 # /crynux-node is the default mount point for the project source in distrobuilder
 mkdir -p /app
 cp -r /crynux-node/src/webui /app/webui
 cd /app/webui
-corepack enable
 yarn --immutable && yarn build
-# The output is in /app/webui/dist, we will copy it to the final location later
 
 echo "Installing Go 1.21.0..."
 curl -O -L "https://golang.org/dl/go1.21.0.linux-amd64.tar.gz"
@@ -40,7 +39,7 @@ cp -r /crynux-node/src /app/build_dir/crynux-node/
 cp /crynux-node/pyproject.toml /crynux-node/setup.py /crynux-node/requirements_docker.txt /crynux-node/MANIFEST.in /crynux-node/go.mod /crynux-node/go.sum /app/build_dir/crynux-node/
 cd /app/build_dir/crynux-node
 /app/venv/bin/pip install --no-cache-dir -r requirements_docker.txt
-# Set CGO_ENABLED for building with imhash
+# Set CGO_ENABLED and PATH for building with imhash
 export CGO_ENABLED="1"
 export PATH="/usr/local/go/bin:${PATH}"
 /app/venv/bin/pip install --no-cache-dir .
@@ -71,38 +70,27 @@ mkdir -p /app/worker
 mv /app/worker_venv /app/worker/venv
 # Copy other artifacts
 cp /crynux-node/crynux-worker/crynux_worker_process.py /app/worker/crynux_worker_process.py
-# The set-config-files.sh script updates config.yml.example.
-# We copy this file into the container, keeping the .example suffix, to match Dockerfile behavior.
 cp /crynux-node/build/docker/config.yml.example /app/config.yml.example
 cp /crynux-node/build/docker/start.sh /app/start.sh
 chmod +x /app/start.sh
 mv /app/webui/dist /app/dist
 rm -rf /app/webui
-# The Dockerfile also copies build/data, if it exists
 if [ -d "/crynux-node/build/data" ]; then
   cp -r /crynux-node/build/data/* /app/
 fi
 
 echo "Installing and enabling systemd service for Crynux Node..."
-# Copy the service file into the systemd directory
 cp /crynux-node/build/lxc/crynux-node.service /etc/systemd/system/crynux-node.service
-# Enable the service so it starts on boot
 systemctl enable crynux-node.service
 
 echo "Setting up environment variables..."
-# Create a profile script to set environment variables on login
 cat <<'EOF' > /etc/profile.d/crynux.sh
 export PATH="/app/venv/bin:/usr/local/go/bin:${PATH}"
 export LD_LIBRARY_PATH="/usr/local/cuda-12.3/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 EOF
 
-echo "Cleaning up build-time dependencies to reduce image size..."
-# Remove yarn (installed via npm)
-npm uninstall -g yarn
-
-# Remove Go (installed manually)
+echo "Cleaning up build-time dependencies..."
+# Yarn, managed by corepack, will be removed when the nodejs package is removed.
+# No manual yarn uninstall is needed.
 rm -rf /usr/local/go
-
-echo "Final environment paths will be set by the profile script. Removing build-time paths from current shell."
-# Update profile script to remove Go path, as it's no longer there
 sed -i 's|:/usr/local/go/bin||g' /etc/profile.d/crynux.sh
