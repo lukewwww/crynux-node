@@ -11,6 +11,9 @@ on:
         description: 'Blockchain'
         required: true
         default: 'dymension'
+  push:
+    branches:
+      - 'gemini-lxc-debug'
 
 jobs:
   build-and-upload:
@@ -50,7 +53,8 @@ jobs:
 
       - name: Install distrobuilder
         run: |
-          go install github.com/lxc/distrobuilder/distrobuilder@latest
+          # Pin to a specific stable version to ensure reproducible builds
+          go install github.com/lxc/distrobuilder/distrobuilder@v2.5
 
       - name: Build LXC image
         run: |
