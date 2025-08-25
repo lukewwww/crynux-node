@@ -290,12 +290,12 @@ class NodeManager(object):
         for i, task_input in enumerate(task_inputs):
             task_fut = await self._worker_manager.send_task(task_input)
             try:
-                await task_fut.get()
                 msg = f"Downloading models............ ({i+1}/{len(task_inputs)})"
                 _logger.info(msg)
                 await self.state_cache.set_node_state(
                     status=models.NodeStatus.Init, init_message=msg
                 )
+                await task_fut.get()
                 await self.download_model_cache.save(
                     models.DownloadedModel(
                         task_type=task_input.task.task_type,
