@@ -11,9 +11,10 @@ source:
   components: ["main", "universe"]
 
 # For distrobuilder v3+, GPG key handling is done by copying the file
-# into the image explicitly, rather than using a 'keyring' property.
+# into the image explicitly, using the 'copy' generator.
 files:
-  - path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
+  - generator: copy
+    path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
     source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
     mode: "0644"
 
