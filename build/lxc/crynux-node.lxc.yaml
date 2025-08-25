@@ -18,9 +18,12 @@ files:
     source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
     mode: "0644"
   - generator: copy
-    path: /build.sh
-    source: build.sh
-    mode: "0755"
+    path: /crynux-node.service
+    source: crynux-node.service
+    mode: "0644"
+  - generator: dump
+    path: /app-source
+    source: ../../
 
 packages:
   manager: apt
@@ -64,4 +67,6 @@ actions:
     action: |
       #!/bin/sh
       set -eux
-      /build.sh
+      cd /app-source
+      chmod +x ./build/lxc/build.sh
+      ./build/lxc/build.sh
