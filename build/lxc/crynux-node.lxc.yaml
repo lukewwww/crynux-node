@@ -17,6 +17,10 @@ files:
     path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
     source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
     mode: "0644"
+  - generator: copy
+    path: /build.sh
+    source: build.sh
+    mode: "0755"
 
 packages:
   manager: apt
@@ -60,7 +64,4 @@ actions:
     action: |
       #!/bin/sh
       set -eux
-      # The source code is mounted at /crynux-node by distrobuilder.
-      # The build script must be made executable before running.
-      chmod +x /crynux-node/build/lxc/build.sh
-      /crynux-node/build/lxc/build.sh
+      /build.sh
