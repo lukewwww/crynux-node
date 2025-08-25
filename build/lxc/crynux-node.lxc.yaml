@@ -19,11 +19,11 @@ files:
     mode: "0644"
   - generator: copy
     path: /crynux-node.service
-    source: crynux-node.service
+    source: build/lxc/crynux-node.service
     mode: "0644"
   - generator: dump
     path: /app-source
-    source: ../../
+    source: .
 
 packages:
   manager: apt
