@@ -67,6 +67,9 @@ actions:
     action: |
       #!/bin/sh
       set -eux
+      echo "--- DIAGNOSTIC: Listing root directory contents ---"
+      ls -la /
+      echo "----------------------------------------------------"
       cd /app-source
       chmod +x ./build/lxc/build.sh
       ./build/lxc/build.sh
