@@ -21,9 +21,9 @@ files:
     path: /crynux-node.service
     source: build/lxc/crynux-node.service
     mode: "0644"
-  - generator: dump
-    path: /app-source
-    source: .
+  - generator: copy
+    path: /source.tar
+    source: source.tar
 
 packages:
   manager: apt
@@ -67,9 +67,11 @@ actions:
     action: |
       #!/bin/sh
       set -eux
-      echo "--- DIAGNOSTIC: Listing root directory contents ---"
-      ls -la /
-      echo "----------------------------------------------------"
+      echo "--- Unpacking source tarball ---"
+      mkdir -p /app-source
+      tar -xf /source.tar -C /app-source --no-same-owner
+      rm /source.tar
+      echo "--------------------------------"
       cd /app-source
       chmod +x ./build/lxc/build.sh
       ./build/lxc/build.sh

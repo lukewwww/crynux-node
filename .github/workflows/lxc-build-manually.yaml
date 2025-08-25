@@ -39,9 +39,10 @@ jobs:
       - name: Set the config files
         env:
           BLOCKCHAIN: ${{ inputs.blockchain || 'dymension' }}
-        run: |
-            chmod +x build/set-config-files.sh
-            ./build/set-config-files.sh $BLOCKCHAIN
+        run: bash build/set-config-files.sh "$BLOCKCHAIN"
+
+      - name: Create source tarball
+        run: tar -cf source.tar .
 
       - name: Install build dependencies
         run: |
@@ -54,7 +55,7 @@ jobs:
           # We rely on the snap to be self-contained with its core dependencies.
           sudo snap install distrobuilder --classic
 
-      - name: Build LXC image
+      - name: Build LXC image with distrobuilder
         run: |
           # The snap installation places distrobuilder directly in the PATH.
           sudo -E distrobuilder build-lxc build/lxc/crynux-node.lxc.yaml -o image.architecture=$(dpkg --print-architecture)
