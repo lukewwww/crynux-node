@@ -15,7 +15,7 @@ source:
 files:
   - path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
     source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-    perms: "0644"
+    mode: "0644"
 
 packages:
   manager: apt
