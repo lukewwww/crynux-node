@@ -11,9 +11,6 @@ on:
         description: 'Blockchain'
         required: true
         default: 'dymension'
-  push:
-    branches:
-      - 'gemini-lxc-debug'
 
 jobs:
   build-and-upload:
@@ -64,13 +61,54 @@ jobs:
           echo "All files in current directory:"
           ls -la
 
+      - name: Get commit hash
+        id: vars
+        shell: bash
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Change ownership of artifacts
         run: sudo chown runner:runner rootfs.tar.xz meta.tar.xz
 
-      - name: Upload LXC image artifacts
+      - name: Install Incus client
+        run: |
+          # Add Zabbly repository for Incus
+          curl -fsSL https://pkgs.zabbly.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/zabbly.gpg] https://pkgs.zabbly.com/incus/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/zabbly-incus.list
+          sudo apt update
+          sudo apt install -y incus-client
+
+      - name: Setup Incus client certificates
+        env:
+          INCUS_CLIENT_CERT: ${{ secrets.INCUS_CLIENT_CERT }}
+          INCUS_CLIENT_KEY: ${{ secrets.INCUS_CLIENT_KEY }}
+        run: |
+          mkdir -p ~/.config/incus
+          echo "$INCUS_CLIENT_CERT" > ~/.config/incus/client.crt
+          echo "$INCUS_CLIENT_KEY" > ~/.config/incus/client.key
+          chmod 600 ~/.config/incus/client.key
+          chmod 644 ~/.config/incus/client.crt
+
+      - name: Configure registry remote
+        run: |
+          incus remote add crynux-network-admin https://lxc.crynux.io:8555 --accept-certificate
+
+      - name: Publish image to registry
+        run: |
+          # Use commit hash as version
+          VERSION="${{ steps.vars.outputs.sha_short }}-${{ env.BLOCKCHAIN }}"
+
+          # Publish image with proper alias
+          incus image import meta.tar.xz rootfs.tar.xz crynux-network-admin: \
+            --alias "crynux-node:${VERSION}" \
+            --public
+
+          echo "Published crynux-node:${VERSION} to registry"
+
+      - name: Upload LXC image artifacts (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: lxc-image-${{ env.BLOCKCHAIN }}
+          name: crynux-node-lxc-image-${{ steps.vars.outputs.sha_short }}-${{ env.BLOCKCHAIN }}
           path: |
             rootfs.tar.xz
             meta.tar.xz
