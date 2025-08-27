@@ -65,9 +65,9 @@ GitHub Actions remotely executes the processing script on the server via SSH. Fo
 curl -fsSL https://pkgs.zabbly.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
 echo "deb [signed-by=/etc/apt/keyrings/zabbly.gpg] https://pkgs.zabbly.com/incus/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/zabbly-incus.list
 
-# Install ONLY incus-simplestreams tool (no incus server needed)
+# Install incus-extra package (contains incus-simplestreams tool)
 sudo apt update
-sudo apt install -y incus-simplestreams
+sudo apt install -y incus-extra
 ```
 
 ### 2 Create Directory Structure
@@ -81,14 +81,7 @@ sudo chmod -R 755 /var/www/lxc
 sudo chmod g+s /var/www/lxc/uploads /var/www/lxc/simplestreams
 ```
 
-### 3. Initialize Simplestreams Repository
-```bash
-# Initialize the simplestreams repository (will create subdirectories automatically)
-cd /var/www/lxc/simplestreams
-incus-simplestreams init-repo . "crynux" "Crynux LXC Images"
-```
-
-### 4. Configure Nginx
+### 3. Configure Nginx
 
 Create Nginx configuration to serve the simplestreams files as static content:
 

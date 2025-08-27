@@ -27,15 +27,17 @@ process_image() {
         return 1
     fi
 
-    # Process directly in upload directory
-    cd "$UPLOAD_DIR"
+    # Process from simplestreams directory
+    cd "$SIMPLESTREAMS_DIR"
+    log "Working from directory: $(pwd)"
 
     # Add image to simplestreams repository
+    # incus-simplestreams automatically extracts metadata from meta.tar.xz:
+    # - architecture, os, release, variant, creation_date, description
     log "Adding image to simplestreams repository..."
-    incus-simplestreams add-image \
-        --repo-path "$SIMPLESTREAMS_DIR" \
-        --alias "crynux-node:$version" \
-        rootfs.tar.xz meta.tar.xz
+    incus-simplestreams add \
+        "$UPLOAD_DIR/meta.tar.xz" "$UPLOAD_DIR/rootfs.tar.xz" \
+        --alias "crynux-node:$version"
 
     if [[ $? -eq 0 ]]; then
         log "Successfully added image crynux-node:$version"
