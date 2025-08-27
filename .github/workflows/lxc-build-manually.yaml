@@ -38,6 +38,38 @@ jobs:
       - name: Set the config files
         run: bash build/set-config-files.sh "$BLOCKCHAIN"
 
+      - name: Update LXC YAML with dynamic values
+        id: update-yaml
+        run: |
+          # Get commit hash for version
+          SHA_SHORT=$(git rev-parse --short HEAD)
+
+          # Determine version based on ref type
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # This is a tag build - use tag name as version
+            VERSION="${{ github.ref_name }}"
+          else
+            # This is a debug build - use commit hash
+            VERSION="${SHA_SHORT}"
+          fi
+
+          echo "Using version: ${VERSION}"
+          echo "Using blockchain: ${BLOCKCHAIN}"
+
+          # Export for later steps
+          echo "sha_short=${SHA_SHORT}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          # Create a full version that includes blockchain for file naming
+          FULL_VERSION="${VERSION}-${BLOCKCHAIN}"
+          echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+
+          # Replace placeholders in LXC YAML
+          sed -i "s/RELEASE_VERSION/${VERSION}/g" build/lxc/crynux-node.lxc.yaml
+          sed -i "s/BLOCKCHAIN_NAME/${BLOCKCHAIN}/g" build/lxc/crynux-node.lxc.yaml
+
+          echo "Updated LXC YAML file:"
+          cat build/lxc/crynux-node.lxc.yaml
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -62,14 +94,18 @@ jobs:
           echo "Checking for Incus image format files:"
           find . -name "incus.tar.xz" -o -name "rootfs.squashfs" | head -10
 
-      - name: Get commit hash
-        id: vars
-        shell: bash
+      - name: Rename artifacts with version
         run: |
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          FULL_VERSION="${{ steps.update-yaml.outputs.full_version }}"
+          sudo mv incus.tar.xz "incus-${FULL_VERSION}.tar.xz"
+          sudo mv rootfs.squashfs "rootfs-${FULL_VERSION}.squashfs"
+          echo "Renamed files to include full version: ${FULL_VERSION}"
+          ls -la incus-*.tar.xz rootfs-*.squashfs
 
       - name: Change ownership of artifacts
-        run: sudo chown runner:runner incus.tar.xz rootfs.squashfs
+        run: |
+          FULL_VERSION="${{ steps.update-yaml.outputs.full_version }}"
+          sudo chown runner:runner "incus-${FULL_VERSION}.tar.xz" "rootfs-${FULL_VERSION}.squashfs"
 
       - name: Upload images to registry server
         uses: appleboy/scp-action@v0.1.7
@@ -78,13 +114,14 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           key: ${{ secrets.REGISTRY_SSH_KEY }}
           port: ${{ secrets.REGISTRY_PORT }}
-          source: "incus.tar.xz,rootfs.squashfs"
+          source: "incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz,rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs"
           target: "/var/www/lxc/uploads/"
+          command_timeout: "60m"
 
       - name: Process image on server
         uses: appleboy/ssh-action@v1.2.2
         env:
-          VERSION: ${{ steps.vars.outputs.sha_short }}-${{ env.BLOCKCHAIN }}
+          VERSION: ${{ steps.update-yaml.outputs.full_version }}
         with:
           host: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
@@ -96,7 +133,7 @@ jobs:
       - name: Upload Incus image artifacts (backup)
         uses: actions/upload-artifact@v4
         with:
-          name: crynux-node-incus-image-${{ steps.vars.outputs.sha_short }}-${{ env.BLOCKCHAIN }}
+          name: crynux-node-incus-image-${{ steps.update-yaml.outputs.full_version }}
           path: |
-            incus.tar.xz
-            rootfs.squashfs
+            incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz
+            rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs

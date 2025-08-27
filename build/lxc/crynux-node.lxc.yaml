@@ -1,13 +1,15 @@
 # build/lxc/crynux-node.lxc.yaml
 image:
   description: Crynux Node LXC Image
-  distribution: ubuntu
-  release: "jammy"
+  distribution: crynux-node
+  release: RELEASE_VERSION
+  variant: BLOCKCHAIN_NAME
   architecture: amd64
 
 source:
   downloader: debootstrap
   url: http://archive.ubuntu.com/ubuntu/
+  suite: jammy
   components: ["main", "universe"]
 
 # For distrobuilder v3+, GPG key handling is done by copying the file

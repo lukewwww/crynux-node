@@ -18,12 +18,12 @@ process_image() {
 
     log "Processing image with version: $version"
 
-    # Ensure upload directory has correct permissions (no chown needed)
-    chmod 755 "$UPLOAD_DIR"
-
     # Check if required files exist in upload directory (build-incus format)
-    if [[ ! -f "$UPLOAD_DIR/incus.tar.xz" ]] || [[ ! -f "$UPLOAD_DIR/rootfs.squashfs" ]]; then
-        log "ERROR: Missing required files (incus.tar.xz or rootfs.squashfs) in $UPLOAD_DIR"
+    local incus_file="$UPLOAD_DIR/incus-${version}.tar.xz"
+    local rootfs_file="$UPLOAD_DIR/rootfs-${version}.squashfs"
+
+    if [[ ! -f "$incus_file" ]] || [[ ! -f "$rootfs_file" ]]; then
+        log "ERROR: Missing required files (incus-${version}.tar.xz or rootfs-${version}.squashfs) in $UPLOAD_DIR"
         return 1
     fi
 
@@ -36,15 +36,16 @@ process_image() {
     log "Adding Incus image to simplestreams repository..."
 
     incus-simplestreams add \
-        "$UPLOAD_DIR/incus.tar.xz" "$UPLOAD_DIR/rootfs.squashfs" \
-        --alias "crynux-node:$version"
+        "$incus_file" "$rootfs_file" \
+        --alias "crynux-node:$version" \
+        --no-default-alias
 
     if [[ $? -eq 0 ]]; then
         log "Successfully added image crynux-node:$version"
         log "Successfully processed and published crynux-node:$version"
 
         # Clean up processed files
-        rm -f "$UPLOAD_DIR/incus.tar.xz" "$UPLOAD_DIR/rootfs.squashfs"
+        rm -f "$incus_file" "$rootfs_file"
 
         return 0
     else
