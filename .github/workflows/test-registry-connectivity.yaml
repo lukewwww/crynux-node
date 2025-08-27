@@ -123,12 +123,9 @@ jobs:
           chmod 644 ~/.config/incus/client.crt
           ls -la ~/.config/incus/
 
-          echo "🔍 Validating certificate..."
-          openssl x509 -in ~/.config/incus/client.crt -text -noout | grep -E "(Subject|Issuer|Not Before|Not After)" || echo "Certificate validation failed"
-
-          echo "🔍 Testing certificate file integrity..."
-          openssl x509 -in ~/.config/incus/client.crt -noout || echo "Certificate file is corrupted"
-          openssl rsa -in ~/.config/incus/client.key -check -noout || echo "Private key file is corrupted"
+          echo "🔍 Validating certificate files..."
+          openssl x509 -in ~/.config/incus/client.crt -noout && echo "✅ Certificate file valid" || echo "❌ Certificate file invalid"
+          openssl rsa -in ~/.config/incus/client.key -check -noout && echo "✅ Private key valid" || echo "❌ Private key invalid"
 
       - name: Test Admin Port 8555 (With Certificate)
         id: test_admin
