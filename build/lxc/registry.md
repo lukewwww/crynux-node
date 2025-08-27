@@ -12,11 +12,11 @@ This guide shows how to set up an LXC image registry with:
 
 ```mermaid
 graph LR
-    Internet[🌐 Internet<br/>Public Users] --> Nginx8554[🔒 Nginx<br/>Port 8554<br/>Public Access]
-    AuthClients[🔑 Authenticated Clients<br/>Management Tools] --> Nginx8555[🔐 Nginx<br/>Port 8555<br/>Client Certificate Auth]
+    Internet[🌐 Internet<br/>Public Users] -->|"HTTPS"| Nginx8554[Nginx Port 8554<br/>API limit: read-only images<br/>Add local cert: /home/ubuntu/incus-certs/]
+    AuthClients[🔑 Authenticated Clients<br/>Management Tools] -->|"HTTPS + Client Cert"| Nginx8555[Nginx Port 8555<br/>Full Access<br/> Verifies Client Cert<br/>Add local cert: /home/ubuntu/incus-certs/]
 
-    Nginx8554 --> IncusServer[⚡ Incus Server<br/>Port 8553<br/>LXC Registry]
-    Nginx8555 --> IncusServer
+    Nginx8554 -->|"🔗 HTTPS + mTLS<br/>Local Client Cert<br/>"| IncusServer[⚡ Incus Server<br/>Port 8553<br/>LXC Registry]
+    Nginx8555 -->|"🔗 HTTPS + mTLS<br/>Local Client Cert<br/>"| IncusServer
 
     IncusServer --> Storage[💾 Storage Pool<br/>LXC Images]
 
@@ -27,35 +27,34 @@ graph LR
         Storage
     end
 
-    subgraph "Access Types"
-        ReadOnly[📖 Read-Only<br/>Image Downloads]
-        FullAccess[✏️ Full Access<br/>Image Publishing<br/>Registry Management]
-    end
-
-    Nginx8554 -.-> ReadOnly
-    Nginx8555 -.-> FullAccess
-
     classDef publicAccess fill:#e1f5fe
     classDef authAccess fill:#f3e5f5
     classDef server fill:#e8f5e8
     classDef storage fill:#fff3e0
 
-    class Internet,Nginx8554,ReadOnly publicAccess
-    class AuthClients,Nginx8555,FullAccess authAccess
+    class Internet,Nginx8554 publicAccess
+    class AuthClients,Nginx8555 authAccess
     class IncusServer server
     class Storage storage
 ```
 
 ### Architecture Design
 
-#### **Certificate Permissions**
+#### **Certificate Model**
 
-The client certificate has **full Incus access permissions** and is trusted by the Incus server.
+Single client certificate stored locally on server with **full Incus access permissions**.
 
-#### **Dual-Port Access Control**
+#### **Nginx Access Control**
 
-- **Port 8554 (Public)**: Nginx provides the certificate to Incus on behalf of anonymous clients, with endpoint restrictions to `[GET] /1.0/images` only
-- **Port 8555 (Admin)**: Clients must present the certificate directly for full Incus API access
+- **Port 8554**: Anonymous access + Nginx uses local certificate + API path restrictions = Read-only
+- **Port 8555**: Client certificate verification + Nginx uses local certificate + No restrictions = Full access
+
+#### **Certificate Verification Flow**
+
+1. **Port 8554**: No client authentication → Nginx reads local certificate → Connects to Incus
+2. **Port 8555**: Client provides certificate → Nginx verifies exact match → Nginx reads local certificate → Connects to Incus
+
+The same local certificate is used for all Nginx-to-Incus connections regardless of the port.
 
 ## Setup Steps
 
