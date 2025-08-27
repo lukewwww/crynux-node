@@ -1,263 +1,170 @@
 # Crynux Node LXC Registry Setup Guide
 
-## Overview
-
-This guide shows how to set up an LXC image registry with:
-- **Public image downloads**: Anyone can download images without authentication
-- **Private management access**: Authenticated access for image publishing
-
-**Note**: This guide uses [Zabbly's Incus packages](https://github.com/zabbly/incus) for Ubuntu 22.04 LTS, which provides official Incus builds via apt repositories.
-
 ## Architecture
 
 ```mermaid
-graph LR
-    Internet[🌐 Internet<br/>Public Users] -->|"HTTPS"| Nginx8554[Nginx Port 8554<br/>API limit: read-only images<br/>Add local cert: /home/ubuntu/incus-certs/]
-    AuthClients[🔑 Authenticated Clients<br/>Management Tools] -->|"HTTPS + Client Cert"| Nginx8555[Nginx Port 8555<br/>Full Access<br/> Verifies Client Cert<br/>Add local cert: /home/ubuntu/incus-certs/]
+graph TD
+    Actions["🚀 GitHub Actions"]
 
-    Nginx8554 -->|"🔗 HTTPS + mTLS<br/>Local Client Cert<br/>"| IncusServer[⚡ Incus Server<br/>Port 8553<br/>LXC Registry]
-    Nginx8555 -->|"🔗 HTTPS + mTLS<br/>Local Client Cert<br/>"| IncusServer
+    Actions -->|"SCP Upload"| RawFiles["📁 Upload Directory"]
+    Actions -->|"SSH Execute"| ServerScript["⚙️ Remote Script<br/>incus-simplestreams<br/>convert"]
 
-    IncusServer --> Storage[💾 Storage Pool<br/>LXC Images]
+    RawFiles -.-> ServerScript
+    ServerScript --> StaticFiles["📁 Simplestreams Directory"]
 
-    subgraph "LXC Registry Server"
-        Nginx8554
-        Nginx8555
-        IncusServer
-        Storage
+    StaticFiles --> Nginx["📡 Nginx Server"]
+    Nginx --> Internet["🌐 Internet Users"]
+
+    subgraph Server ["Registry Server"]
+        RawFiles
+        ServerScript
+        StaticFiles
+        Nginx
     end
 
-    classDef publicAccess fill:#e1f5fe
-    classDef authAccess fill:#f3e5f5
-    classDef server fill:#e8f5e8
-    classDef storage fill:#fff3e0
+    classDef external fill:#e8f5e8
+    classDef server fill:#e1f5fe
+    classDef storage fill:#fff9c4
+    classDef remote fill:#fff2e0
 
-    class Internet,Nginx8554 publicAccess
-    class AuthClients,Nginx8555 authAccess
-    class IncusServer server
-    class Storage storage
+    class Actions,Internet external
+    class Nginx server
+    class RawFiles,StaticFiles storage
+    class ServerScript remote
 ```
 
 ### Architecture Design
 
-#### **Certificate Model**
+#### **Static File Distribution**
 
-Single client certificate stored locally on server with **full Incus access permissions**.
+Pure simplestreams protocol with static file serving for maximum performance and simplicity.
 
-#### **Nginx Access Control**
+#### **Publishing Pipeline**
 
-- **Port 8554**: Anonymous access + Nginx uses local certificate + API path restrictions = Read-only
-- **Port 8555**: Client certificate verification + Nginx uses local certificate + No restrictions = Full access
+1. **Build**: GitHub Actions automatically builds LXC images using distrobuilder
+2. **Upload**: Raw image files (rootfs.tar.xz + meta.tar.xz) are uploaded via SCP to server
+3. **Remote Convert**: GitHub Actions executes processing script via SSH on server
+4. **Deploy**: Converted simplestreams files are served as static content
 
-#### **Certificate Verification Flow**
+#### **Distribution**
 
-1. **Port 8554**: No client authentication → Nginx reads local certificate → Connects to Incus
-2. **Port 8555**: Client provides certificate → Nginx verifies exact match → Nginx reads local certificate → Connects to Incus
+- **Static files**: Simplestreams format for efficient image distribution
+- **No authentication**: Public access to all published images
+- **CDN-ready**: Static files can be easily cached and distributed globally
 
-The same local certificate is used for all Nginx-to-Incus connections regardless of the port.
+#### **Remote Processing**
+
+GitHub Actions remotely executes the processing script on the server via SSH. Following [official Incus documentation](https://linuxcontainers.org/incus/docs/main/reference/image_servers/), the `incus-simplestreams` tool runs with ubuntu user permissions to manage the file system tree in simplestreams format.
 
 ## Setup Steps
 
-### 1. Install and Configure Incus
+### 1. Install Required Packages
 
-#### 1.1 Install Incus
 ```bash
+# Add Zabbly repository for incus-simplestreams
+curl -fsSL https://pkgs.zabbly.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
+echo "deb [signed-by=/etc/apt/keyrings/zabbly.gpg] https://pkgs.zabbly.com/incus/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/zabbly-incus.list
 
-# Add Zabbly repository key
-curl -fsSL https://pkgs.zabbly.com/key.asc | gpg --show-keys --fingerprint
-mkdir -p /etc/apt/keyrings/
-curl -fsSL https://pkgs.zabbly.com/key.asc -o /etc/apt/keyrings/zabbly.asc
-
-# Add Zabbly Incus stable repository
-sh -c 'cat <<EOF > /etc/apt/sources.list.d/zabbly-incus-stable.sources
-Enabled: yes
-Types: deb
-URIs: https://pkgs.zabbly.com/incus/stable
-Suites: $(. /etc/os-release && echo ${VERSION_CODENAME})
-Components: main
-Architectures: $(dpkg --print-architecture)
-Signed-By: /etc/apt/keyrings/zabbly.asc
-EOF'
-
-# Install Incus
+# Install ONLY incus-simplestreams tool (no incus server needed)
 sudo apt update
-sudo apt install -y incus
+sudo apt install -y incus-simplestreams
 ```
 
-#### 1.2 Initialize Incus
+### 2 Create Directory Structure
 ```bash
-# Initialize Incus
-sudo incus admin init
+# Create web-accessible directory structure
+sudo mkdir -p /var/www/lxc/{uploads,simplestreams}
+sudo chown -R ubuntu:www-data /var/www/lxc
+sudo chmod -R 755 /var/www/lxc
 
-# Configuration options:
-# - Would you like to use LXD clustering? no
-# - Do you want to configure a new storage pool? yes
-# - Name of the new storage pool: default
-# - Name of the storage backend to use: dir
-# - Where should this storage pool store its data? /var/lib/incus/storage-pools/default (default)
-# - Would you like to connect to a MAAS server? no
-# - Would you like to create a new local network bridge? no (not needed for registry-only)
-# - Would you like the Incus server to be available over the network? yes
-# - Address to bind Incus to: all addresses
-# - Port: 8553 (internal port, accessed through Nginx proxy)
+# Set setgid bit to ensure new files inherit www-data group automatically
+sudo chmod g+s /var/www/lxc/uploads /var/www/lxc/simplestreams
 ```
 
-#### 1.3 Configure Incus
+### 3. Initialize Simplestreams Repository
 ```bash
-# Configure Incus to listen on internal port
-sudo incus config set core.https_address 127.0.0.1:8553
-
-# Restart Incus to apply the new listening address
-sudo systemctl restart incus
+# Initialize the simplestreams repository (will create subdirectories automatically)
+cd /var/www/lxc/simplestreams
+incus-simplestreams init-repo . "crynux" "Crynux LXC Images"
 ```
 
-### 2. Generate Client Certificate
+### 4. Configure Nginx
 
-#### 2.1 Create Certificate Directory
-```bash
-mkdir -p ~/incus-certs
-cd ~/incus-certs
-```
+Create Nginx configuration to serve the simplestreams files as static content:
 
-#### 2.2 Generate Client Certificate
-```bash
-openssl req -x509 -newkey rsa:4096 \
-    -keyout incus-client.key \
-    -out incus-client.crt \
-    -days 3650 -nodes \
-    -subj "/CN=incus-client"
-```
-
-#### 2.3 Add Certificate to Incus Trust Store
-```bash
-# Add client certificate
-sudo incus config trust add-certificate incus-client.crt --name "incus-client"
-
-# Verify certificate
-sudo incus config trust list
-```
-
-### 3. Configure Nginx
-
-```bash
-sudo tee /etc/nginx/conf.d/lxc.crynux.io.conf << 'EOF'
-upstream incus_backend {
-    server 127.0.0.1:8553;
-}
-
-# Public access port (8554) - Image downloads only
+```nginx
+# /etc/nginx/conf.d/lxc.crynux.io.conf
 server {
-    listen 8554 ssl http2;
+    listen 443 ssl http2;
     server_name lxc.crynux.io;
 
     # SSL configuration
     ssl_certificate /etc/letsencrypt/live/crynux.io/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/crynux.io/privkey.pem;
 
-    # Allow only image-related GET requests
-    location ~ ^/1\.0/images {
-        if ($request_method != GET) {
-            return 405;
+    # Document root for simplestreams
+    root /var/www/lxc/simplestreams;
+    index index.json;
+
+    # Only allow GET and HEAD requests
+    if ($request_method !~ ^(GET|HEAD)$) {
+        return 405;
+    }
+
+    # Serve static files with proper content types
+    location / {
+        try_files $uri $uri/ $uri/index.json =404;
+
+        # Set content type for JSON files
+        location ~* \.(json)$ {
+            add_header Content-Type "application/json; charset=utf-8";
         }
 
-        proxy_pass https://incus_backend;
-        proxy_ssl_certificate /home/ubuntu/incus-certs/incus-client.crt;
-        proxy_ssl_certificate_key /home/ubuntu/incus-certs/incus-client.key;
-        proxy_ssl_verify off;
-        proxy_ssl_protocols TLSv1.2 TLSv1.3;
-        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Allow access to server information
-    location = /1.0 {
-        if ($request_method != GET) {
-            return 405;
+        # Set content type for image files
+        location ~* \.(tar\.xz|squashfs|qcow2)$ {
+            add_header Content-Type "application/octet-stream";
         }
-
-        proxy_pass https://incus_backend;
-        proxy_ssl_certificate /home/ubuntu/incus-certs/incus-client.crt;
-        proxy_ssl_certificate_key /home/ubuntu/incus-certs/incus-client.key;
-        proxy_ssl_verify off;
-        proxy_ssl_protocols TLSv1.2 TLSv1.3;
-        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Deny all other requests
-    location / {
-        return 403 "Public access limited to image downloads only";
     }
 }
-
-# Management port (8555) - Full access permissions
-server {
-    listen 8555 ssl http2;
-    server_name lxc.crynux.io;
-
-    # SSL configuration
-    ssl_certificate /etc/letsencrypt/live/crynux.io/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/crynux.io/privkey.pem;
-
-    # Require client certificate authentication
-    ssl_client_certificate /home/ubuntu/incus-certs/incus-client.crt;
-    ssl_verify_client on;
-
-    # Forward all requests to Incus
-    location / {
-        proxy_pass https://incus_backend;
-        proxy_ssl_verify off;
-        proxy_ssl_protocols TLSv1.2 TLSv1.3;
-        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
-
-        proxy_set_header SSL-Client-Cert $ssl_client_cert;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-EOF
 ```
+
+## GitHub Actions Setup
+
+Configure the following secrets in your GitHub repository to enable automatic image publishing:
+
+### Required GitHub Secrets
+
+- `REGISTRY_HOST`
+- `REGISTRY_PORT` (optional)
+- `REGISTRY_USERNAME`
+- `REGISTRY_SSH_KEY`
 
 ## Usage Guide
 
 ### Public Users Downloading Images
 
+#### Using Incus
+
 ```bash
-# Add public image source
-incus remote add crynux-network https://lxc.crynux.io:8554 --public
+# Add public simplestreams image source
+incus remote add crynux https://lxc.crynux.io --protocol=simplestreams
 
 # List available images
-incus image list crynux-network:
+incus image list crynux:
 
 # Launch container
-incus launch crynux-network:crynux-node:v2.6.0 my-container
+incus launch crynux:crynux-node:v2.6.0 my-container
 ```
 
-### Administrators Publishing Images
+#### Using LXD
 
 ```bash
-# Setup client certificates
-mkdir -p ~/.config/incus
-cp incus-client.crt ~/.config/incus/client.crt
-cp incus-client.key ~/.config/incus/client.key
-chmod 600 ~/.config/incus/client.key
-chmod 644 ~/.config/incus/client.crt
+# Add public simplestreams image source (protocol must be specified)
+lxc remote add crynux https://lxc.crynux.io --protocol=simplestreams
 
-# Add management remote
-incus remote add crynux-network-admin https://lxc.crynux.io:8555 --accept-certificate
+# List available images
+lxc image list crynux:
 
-# Publish image (requires both metadata and rootfs)
-incus image import meta.tar.xz rootfs.tar.xz crynux-network-admin: \
-  --alias "crynux-node:v2.6.0" \
-  --public
+# Launch container
+lxc launch crynux:crynux-node:v2.6.0 my-container
 ```

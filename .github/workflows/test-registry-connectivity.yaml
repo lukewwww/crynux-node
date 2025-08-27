@@ -1,4 +1,4 @@
-name: Test LXC Registry Connectivity
+name: Test LXC Registry Connectivity (Simplestreams)
 
 on:
   workflow_dispatch:
@@ -17,152 +17,81 @@ jobs:
     steps:
       - name: Install Incus client
         run: |
-          echo "🔧 Installing Incus client for detailed registry testing..."
-
-          # Add Zabbly repository for Incus
-          echo "📥 Adding Zabbly GPG key..."
+          # Add Zabbly repository for Incus client
           curl -fsSL https://pkgs.zabbly.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
-          echo "✅ GPG key added"
-
-          echo "📝 Adding repository to sources..."
           echo "deb [signed-by=/etc/apt/keyrings/zabbly.gpg] https://pkgs.zabbly.com/incus/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/zabbly-incus.list
-          echo "✅ Repository added"
-
-          echo "🔄 Updating package lists..."
           sudo apt update
-          echo "✅ Packages updated"
-
-          echo "📦 Installing incus-client..."
           sudo apt install -y incus-client
-          echo "✅ Incus client installed: $(incus version)"
 
-      - name: Network Connectivity Analysis
+      - name: Test Network Connectivity
         run: |
-          echo "🌐 Comprehensive Network Connectivity Analysis"
-          echo "=============================================="
-
-          echo "🔍 Testing basic network connectivity..."
-          ping -c 3 ${{ inputs.registry_host }} || echo "⚠️ Ping to registry host failed"
+          echo "🌐 Testing Basic Network Connectivity"
+          echo "===================================="
 
           echo "🔍 Testing DNS resolution..."
           nslookup ${{ inputs.registry_host }} || echo "⚠️ DNS resolution failed"
-          dig ${{ inputs.registry_host }} || echo "⚠️ DNS dig failed"
 
-          echo "🔍 Testing port connectivity..."
-          echo "Testing port 8554 (public)..."
-          timeout 10 bash -c "</dev/tcp/${{ inputs.registry_host }}/8554" && echo "✅ Port 8554 is reachable" || echo "❌ Port 8554 is not reachable"
+          echo "🔍 Testing ping connectivity..."
+          ping -c 3 ${{ inputs.registry_host }} || echo "⚠️ Ping failed"
 
-          echo "Testing port 8555 (admin)..."
-          timeout 10 bash -c "</dev/tcp/${{ inputs.registry_host }}/8555" && echo "✅ Port 8555 is reachable" || echo "❌ Port 8555 is not reachable"
+          echo "🔍 Testing HTTPS port 443 connectivity..."
+          timeout 10 bash -c "</dev/tcp/${{ inputs.registry_host }}/443" && echo "✅ Port 443 is reachable" || echo "❌ Port 443 is not reachable"
 
-          echo "🔍 Testing SSL handshakes..."
-          echo "SSL handshake on port 8554:"
-          echo | openssl s_client -connect ${{ inputs.registry_host }}:8554 -servername ${{ inputs.registry_host }} 2>&1 | head -30 || echo "SSL handshake on 8554 failed"
+      - name: Test SSL/TLS
+        run: |
+          echo "🔒 Testing SSL/TLS Configuration"
+          echo "==============================="
 
-          echo "SSL handshake on port 8555:"
-          echo | openssl s_client -connect ${{ inputs.registry_host }}:8555 -servername ${{ inputs.registry_host }} 2>&1 | head -30 || echo "SSL handshake on 8555 failed"
+          echo "🔍 Testing SSL handshake on port 443..."
+          echo | openssl s_client -connect ${{ inputs.registry_host }}:443 -servername ${{ inputs.registry_host }} 2>&1 | head -30 || echo "SSL handshake failed"
 
-      - name: Test Public Port 8554 (No Certificate)
-        id: test_public
+      - name: Test Simplestreams Registry
+        id: test_registry
         continue-on-error: true
         run: |
-          echo "🌐 Detailed Testing of Public Port 8554"
-          echo "======================================="
+          echo "📁 Testing Simplestreams Registry"
+          echo "==============================================="
 
-          echo "🔍 Testing raw HTTP requests to port 8554..."
-          echo "GET /1.0 request:"
-          curl -v -k -m 30 -X GET https://${{ inputs.registry_host }}:8554/1.0 2>&1 | head -50 || echo "GET /1.0 request failed"
+          echo "🔍 Testing simplestreams endpoints..."
 
-          echo "GET /1.0/images request:"
-          curl -v -k -m 30 -X GET https://${{ inputs.registry_host }}:8554/1.0/images 2>&1 | head -50 || echo "GET /1.0/images request failed"
+                    # Test root endpoint
+          echo "Testing root endpoint (/):"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/ 2>&1 || echo "Root endpoint failed"
 
-          echo "POST request (should be rejected):"
-          curl -v -k -m 30 -X POST https://${{ inputs.registry_host }}:8554/1.0 2>&1 | head -50 || echo "POST request handled as expected"
+          # Test streams directory
+          echo "Testing streams/v1/ directory:"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/streams/v1/ 2>&1 || echo "Streams directory failed"
 
-          echo "📡 Adding public remote with maximum verbosity..."
-          incus remote add test-public https://${{ inputs.registry_host }}:8554 --public --debug 2>&1 || {
-            echo "❌ Failed to add public remote"
-            echo "Detailed error analysis:"
-            curl -I -k https://${{ inputs.registry_host }}:8554/1.0 2>&1 || echo "HEAD request also failed"
-          }
+          # Test index.json
+          echo "Testing streams/v1/index.json:"
+          curl -s -k -m 10 https://${{ inputs.registry_host }}/streams/v1/index.json | head -10 2>&1 || echo "Index.json not found or empty"
 
-          echo "📋 Testing image listing from public port..."
-          incus image list test-public: --debug 2>&1 || {
-            echo "❌ Failed to list images from public port"
-            echo "Testing alternative methods..."
-            curl -v -k -H "Accept: application/json" https://${{ inputs.registry_host }}:8554/1.0/images 2>&1 | head -30 || echo "JSON API test failed"
-          }
+          # Test images directory
+          echo "Testing images/ directory:"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/images/ 2>&1 || echo "Images directory failed"
 
-          echo "🔍 Testing server info from public port..."
-          incus info test-public: --debug 2>&1 || echo "Server info request failed"
-
-          echo "public_test=success" >> $GITHUB_OUTPUT
-
-      - name: Setup Incus client certificates
-        env:
-          INCUS_CLIENT_CERT: ${{ secrets.INCUS_CLIENT_CERT }}
-          INCUS_CLIENT_KEY: ${{ secrets.INCUS_CLIENT_KEY }}
-        run: |
-          echo "🔐 Setting up client certificates with validation..."
-          echo "=================================================="
-
-          echo "📁 Creating incus config directory..."
-          mkdir -p ~/.config/incus
-          ls -la ~/.config/incus || echo "Directory creation failed"
-
-          echo "📝 Writing client certificate..."
-          echo "$INCUS_CLIENT_CERT" > ~/.config/incus/client.crt
-          echo "Certificate lines: $(wc -l < ~/.config/incus/client.crt)"
-
-          echo "📝 Writing client private key..."
-          echo "$INCUS_CLIENT_KEY" > ~/.config/incus/client.key
-          echo "Private key lines: $(wc -l < ~/.config/incus/client.key)"
-
-          echo "🔒 Setting file permissions..."
-          chmod 600 ~/.config/incus/client.key
-          chmod 644 ~/.config/incus/client.crt
-          ls -la ~/.config/incus/
-
-          echo "🔍 Validating certificate files..."
-          openssl x509 -in ~/.config/incus/client.crt -noout && echo "✅ Certificate file valid" || echo "❌ Certificate file invalid"
-          openssl rsa -in ~/.config/incus/client.key -check -noout && echo "✅ Private key valid" || echo "❌ Private key invalid"
-
-      - name: Test Admin Port 8555 (With Certificate)
-        id: test_admin
+      - name: Test Incus Client Integration
         continue-on-error: true
         run: |
-          echo "🔑 Detailed Testing of Admin Port 8555"
-          echo "======================================"
+          echo "📡 Testing Incus Client Integration"
+          echo "=================================="
 
-          echo "🔍 Testing raw HTTPS requests with certificate to port 8555..."
-          echo "GET /1.0 with client certificate:"
-          curl -v -k -m 30 --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key \
-            https://${{ inputs.registry_host }}:8555/1.0 2>&1 | head -50 || echo "Authenticated GET /1.0 failed"
-
-          echo "GET /1.0/images with client certificate:"
-          curl -v -k -m 30 --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key \
-            https://${{ inputs.registry_host }}:8555/1.0/images 2>&1 | head -50 || echo "Authenticated GET /1.0/images failed"
-
-          echo "📡 Adding admin remote with maximum verbosity..."
-          incus remote add test-admin https://${{ inputs.registry_host }}:8555 --accept-certificate --debug 2>&1 || {
-            echo "❌ Failed to add admin remote"
-            echo "Testing certificate authentication manually..."
-            curl -I -k --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key \
-              https://${{ inputs.registry_host }}:8555/1.0 2>&1 || echo "Manual certificate auth also failed"
+          echo "📡 Adding simplestreams remote..."
+          incus remote add test-registry https://${{ inputs.registry_host }} --protocol=simplestreams --public 2>&1 || {
+            echo "❌ Failed to add simplestreams remote"
+            echo "This may be normal if the registry is empty"
           }
 
-          echo "📋 Testing image listing from admin port..."
-          incus image list test-admin: --debug 2>&1 || {
-            echo "❌ Failed to list images from admin port"
-            echo "Detailed debugging..."
-            curl -v -k --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key \
-              -H "Accept: application/json" https://${{ inputs.registry_host }}:8555/1.0/images 2>&1 | head -30
+          # Test listing images
+          echo "📋 Testing image listing from registry..."
+          incus image list test-registry: 2>&1 || {
+            echo "❌ Failed to list images from registry"
+            echo "Registry may be empty or not properly configured"
           }
 
-          echo "🔍 Testing server info from admin port..."
-          incus info test-admin: --debug 2>&1 || echo "Admin server info request failed"
-
-          echo "admin_test=success" >> $GITHUB_OUTPUT
+          # Test remote info
+          echo "🔍 Testing remote info..."
+          incus remote list 2>&1 || echo "Remote list failed"
 
       - name: HTTP Response Code Analysis
         continue-on-error: true
@@ -170,58 +99,55 @@ jobs:
           echo "🔬 HTTP Response Code Analysis"
           echo "============================="
 
-          echo "Testing various endpoints for response codes..."
+          echo "Testing simplestreams endpoints for response codes..."
 
-          echo "Public port endpoints:"
-          curl -s -o /dev/null -w "GET /1.0 → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}:8554/1.0 || echo "Request failed"
-          curl -s -o /dev/null -w "GET /1.0/images → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}:8554/1.0/images || echo "Request failed"
-          curl -s -o /dev/null -w "POST /1.0 → HTTP %{http_code}\n" -k -X POST https://${{ inputs.registry_host }}:8554/1.0 || echo "Request failed"
-          curl -s -o /dev/null -w "GET /1.0/containers → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}:8554/1.0/containers || echo "Request failed"
+                    echo "Static file endpoints:"
+          curl -s -o /dev/null -w "GET / → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/ || echo "Request failed"
+          curl -s -o /dev/null -w "GET /streams/v1/ → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/streams/v1/ || echo "Request failed"
+          curl -s -o /dev/null -w "GET /streams/v1/index.json → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/streams/v1/index.json || echo "Request failed"
+          curl -s -o /dev/null -w "GET /images/ → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/images/ || echo "Request failed"
 
-          echo "Admin port endpoints (with certificate):"
-          curl -s -o /dev/null -w "GET /1.0 → HTTP %{http_code}\n" -k --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key https://${{ inputs.registry_host }}:8555/1.0 || echo "Request failed"
-          curl -s -o /dev/null -w "GET /1.0/images → HTTP %{http_code}\n" -k --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key https://${{ inputs.registry_host }}:8555/1.0/images || echo "Request failed"
-          curl -s -o /dev/null -w "POST /1.0/images → HTTP %{http_code}\n" -k --cert ~/.config/incus/client.crt --key ~/.config/incus/client.key -X POST https://${{ inputs.registry_host }}:8555/1.0/images || echo "Request failed"
+          echo "Testing forbidden methods (should return 405):"
+          curl -s -o /dev/null -w "POST / → HTTP %{http_code}\n" -k -X POST https://${{ inputs.registry_host }}/ || echo "Request failed"
+          curl -s -o /dev/null -w "PUT /streams/v1/index.json → HTTP %{http_code}\n" -k -X PUT https://${{ inputs.registry_host }}/streams/v1/index.json || echo "Request failed"
+          curl -s -o /dev/null -w "DELETE /images/ → HTTP %{http_code}\n" -k -X DELETE https://${{ inputs.registry_host }}/images/ || echo "Request failed"
 
-      - name: List All Remotes
-        if: always()
+      - name: Test Content Types and Headers
+        continue-on-error: true
         run: |
-          echo "📋 Current remote configurations:"
-          incus remote list || echo "No remotes configured"
+          echo "📄 Testing Content Types and Security Headers"
+          echo "============================================="
+
+                    echo "Testing JSON content type:"
+          curl -I -k https://${{ inputs.registry_host }}/streams/v1/index.json 2>&1 | grep -i "content-type" || echo "No JSON content type header"
+
+          echo "Testing security headers:"
+          curl -I -k https://${{ inputs.registry_host }}/ 2>&1 | grep -E "(X-Content-Type-Options|X-Frame-Options|X-XSS-Protection)" || echo "Security headers not found"
+
+          echo "Testing CORS headers:"
+          curl -I -k https://${{ inputs.registry_host }}/ 2>&1 | grep -i "access-control" || echo "CORS headers not found"
 
       - name: Cleanup Test Remotes
-        if: always()
+        continue-on-error: true
         run: |
           echo "🧹 Cleaning up test remotes..."
-          incus remote remove test-public 2>/dev/null || echo "Public remote not found"
-          incus remote remove test-admin 2>/dev/null || echo "Admin remote not found"
+          incus remote remove test-registry 2>/dev/null || echo "No test-registry remote to remove"
 
-      - name: Test Results Summary
-        if: always()
+      - name: Summary
         run: |
-          echo "📈 Registry Connectivity Test Results"
-          echo "====================================="
-
-          if [ "${{ steps.test_public.outputs.public_test }}" = "success" ]; then
-            echo "✅ Public Port 8554: PASSED"
-          else
-            echo "❌ Public Port 8554: FAILED"
-          fi
-
-          if [ "${{ steps.test_admin.outputs.admin_test }}" = "success" ]; then
-            echo "✅ Admin Port 8555: PASSED"
-          else
-            echo "❌ Admin Port 8555: FAILED"
-          fi
-
-          echo "====================================="
-
-          # Output detailed failure information
-          if [ "${{ steps.test_public.outputs.public_test }}" != "success" ] || [ "${{ steps.test_admin.outputs.admin_test }}" != "success" ]; then
-            echo "🔍 Debugging Information:"
-            echo "- Check Nginx configuration and status"
-            echo "- Verify SSL certificates are valid"
-            echo "- Check Incus server is running and accessible"
-            echo "- Review firewall settings for ports 8554/8555"
-            echo "- Verify DNS resolution for ${{ inputs.registry_host }}"
-          fi
+          echo "📊 Test Summary"
+          echo "==============="
+          echo "✅ Network connectivity tests completed"
+          echo "✅ SSL/TLS tests completed"
+          echo "✅ Simplestreams endpoint tests completed"
+          echo "✅ Incus client integration tests completed"
+          echo "✅ HTTP response code analysis completed"
+          echo "✅ Content type and security header tests completed"
+          echo ""
+          echo "🔍 Check the above logs for any specific failures"
+          echo "📋 A working simplestreams registry should:"
+          echo "   - Return HTTP 200 for GET requests to valid endpoints"
+          echo "   - Return HTTP 405 for forbidden methods (POST, PUT, DELETE)"
+          echo "   - Serve JSON files with proper content-type headers"
+          echo "   - Include security headers (X-Content-Type-Options, etc.)"
+          echo "   - Support CORS headers for cross-origin requests"
