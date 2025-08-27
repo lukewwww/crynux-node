@@ -21,9 +21,9 @@ process_image() {
     # Ensure upload directory has correct permissions (no chown needed)
     chmod 755 "$UPLOAD_DIR"
 
-    # Check if required files exist in upload directory
-    if [[ ! -f "$UPLOAD_DIR/rootfs.tar.xz" ]] || [[ ! -f "$UPLOAD_DIR/meta.tar.xz" ]]; then
-        log "ERROR: Missing required files (rootfs.tar.xz or meta.tar.xz) in $UPLOAD_DIR"
+    # Check if required files exist in upload directory (build-incus format)
+    if [[ ! -f "$UPLOAD_DIR/incus.tar.xz" ]] || [[ ! -f "$UPLOAD_DIR/rootfs.squashfs" ]]; then
+        log "ERROR: Missing required files (incus.tar.xz or rootfs.squashfs) in $UPLOAD_DIR"
         return 1
     fi
 
@@ -32,11 +32,11 @@ process_image() {
     log "Working from directory: $(pwd)"
 
     # Add image to simplestreams repository
-    # incus-simplestreams automatically extracts metadata from meta.tar.xz:
-    # - architecture, os, release, variant, creation_date, description
-    log "Adding image to simplestreams repository..."
+    # incus-simplestreams processes build-incus format: incus.tar.xz and rootfs.squashfs
+    log "Adding Incus image to simplestreams repository..."
+
     incus-simplestreams add \
-        "$UPLOAD_DIR/meta.tar.xz" "$UPLOAD_DIR/rootfs.tar.xz" \
+        "$UPLOAD_DIR/incus.tar.xz" "$UPLOAD_DIR/rootfs.squashfs" \
         --alias "crynux-node:$version"
 
     if [[ $? -eq 0 ]]; then
@@ -44,7 +44,7 @@ process_image() {
         log "Successfully processed and published crynux-node:$version"
 
         # Clean up processed files
-        rm -f "$UPLOAD_DIR/rootfs.tar.xz" "$UPLOAD_DIR/meta.tar.xz"
+        rm -f "$UPLOAD_DIR/incus.tar.xz" "$UPLOAD_DIR/rootfs.squashfs"
 
         return 0
     else
