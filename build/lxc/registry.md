@@ -165,6 +165,8 @@ server {
         proxy_ssl_certificate /home/ubuntu/incus-certs/incus-client.crt;
         proxy_ssl_certificate_key /home/ubuntu/incus-certs/incus-client.key;
         proxy_ssl_verify off;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -182,6 +184,8 @@ server {
         proxy_ssl_certificate /home/ubuntu/incus-certs/incus-client.crt;
         proxy_ssl_certificate_key /home/ubuntu/incus-certs/incus-client.key;
         proxy_ssl_verify off;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -212,6 +216,8 @@ server {
     location / {
         proxy_pass https://incus_backend;
         proxy_ssl_verify off;
+        proxy_ssl_protocols TLSv1.2 TLSv1.3;
+        proxy_ssl_ciphers HIGH:!aNULL:!MD5;
 
         proxy_set_header SSL-Client-Cert $ssl_client_cert;
         proxy_set_header Host $host;
