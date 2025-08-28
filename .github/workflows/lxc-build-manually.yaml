@@ -107,16 +107,27 @@ jobs:
           FULL_VERSION="${{ steps.update-yaml.outputs.full_version }}"
           sudo chown runner:runner "incus-${FULL_VERSION}.tar.xz" "rootfs-${FULL_VERSION}.squashfs"
 
-      - name: Upload images to registry server
+      # Seperate upload of incus image metadata and rootfs to avoid time-consuming tar & untar
+      - name: Upload incus image metadata to registry server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           key: ${{ secrets.REGISTRY_SSH_KEY }}
           port: ${{ secrets.REGISTRY_PORT }}
-          source: "incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz,rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs"
+          source: "incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz"
           target: "/var/www/lxc/uploads/"
-          command_timeout: "60m"
+
+      - name: Upload incus image rootfs to registry server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          key: ${{ secrets.REGISTRY_SSH_KEY }}
+          port: ${{ secrets.REGISTRY_PORT }}
+          source: "rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs"
+          target: "/var/www/lxc/uploads/"
+          command_timeout: "30m"
 
       - name: Process image on server
         uses: appleboy/ssh-action@v1.2.2
@@ -129,6 +140,7 @@ jobs:
           port: ${{ secrets.REGISTRY_PORT }}
           envs: VERSION
           script_path: build/lxc/process-lxc-images.sh
+          command_timeout: "30m"
 
       - name: Upload Incus image artifacts (backup)
         uses: actions/upload-artifact@v4
