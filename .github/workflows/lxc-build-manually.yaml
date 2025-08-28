@@ -107,27 +107,28 @@ jobs:
           FULL_VERSION="${{ steps.update-yaml.outputs.full_version }}"
           sudo chown runner:runner "incus-${FULL_VERSION}.tar.xz" "rootfs-${FULL_VERSION}.squashfs"
 
-      # Seperate upload of incus image metadata and rootfs to avoid time-consuming tar & untar
-      - name: Upload incus image metadata to registry server
-        uses: appleboy/scp-action@v0.1.7
+      # Setup SSH agent for secure key management
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.REGISTRY_HOST }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          key: ${{ secrets.REGISTRY_SSH_KEY }}
-          port: ${{ secrets.REGISTRY_PORT }}
-          source: "incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz"
-          target: "/var/www/lxc/uploads/"
+          ssh-private-key: ${{ secrets.REGISTRY_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -p ${{ secrets.REGISTRY_PORT }} ${{ secrets.REGISTRY_HOST }} >> ~/.ssh/known_hosts
+
+      # Direct scp upload of incus image metadata and rootfs to avoid time-consuming tar & untar
+      - name: Upload incus image metadata to registry server
+        run: |
+          timeout 30m scp -P ${{ secrets.REGISTRY_PORT }} \
+            "incus-${{ steps.update-yaml.outputs.full_version }}.tar.xz" \
+            ${{ secrets.REGISTRY_USERNAME }}@${{ secrets.REGISTRY_HOST }}:/var/www/lxc/uploads/
 
       - name: Upload incus image rootfs to registry server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.REGISTRY_HOST }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          key: ${{ secrets.REGISTRY_SSH_KEY }}
-          port: ${{ secrets.REGISTRY_PORT }}
-          source: "rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs"
-          target: "/var/www/lxc/uploads/"
-          command_timeout: "30m"
+        run: |
+          timeout 30m scp -P ${{ secrets.REGISTRY_PORT }} \
+            "rootfs-${{ steps.update-yaml.outputs.full_version }}.squashfs" \
+            ${{ secrets.REGISTRY_USERNAME }}@${{ secrets.REGISTRY_HOST }}:/var/www/lxc/uploads/
 
       - name: Process image on server
         uses: appleboy/ssh-action@v1.2.2
