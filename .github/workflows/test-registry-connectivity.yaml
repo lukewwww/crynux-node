@@ -1,0 +1,153 @@
+name: Test LXC Registry Connectivity (Simplestreams)
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry_host:
+        description: 'Registry hostname'
+        required: true
+        default: 'lxc.crynux.io'
+
+jobs:
+  test-connectivity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install Incus client
+        run: |
+          # Add Zabbly repository for Incus client
+          curl -fsSL https://pkgs.zabbly.com/key.asc | sudo gpg --dearmor -o /etc/apt/keyrings/zabbly.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/zabbly.gpg] https://pkgs.zabbly.com/incus/stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/zabbly-incus.list
+          sudo apt update
+          sudo apt install -y incus-client
+
+      - name: Test Network Connectivity
+        run: |
+          echo "🌐 Testing Basic Network Connectivity"
+          echo "===================================="
+
+          echo "🔍 Testing DNS resolution..."
+          nslookup ${{ inputs.registry_host }} || echo "⚠️ DNS resolution failed"
+
+          echo "🔍 Testing ping connectivity..."
+          ping -c 3 ${{ inputs.registry_host }} || echo "⚠️ Ping failed"
+
+          echo "🔍 Testing HTTPS port 443 connectivity..."
+          timeout 10 bash -c "</dev/tcp/${{ inputs.registry_host }}/443" && echo "✅ Port 443 is reachable" || echo "❌ Port 443 is not reachable"
+
+      - name: Test SSL/TLS
+        run: |
+          echo "🔒 Testing SSL/TLS Configuration"
+          echo "==============================="
+
+          echo "🔍 Testing SSL handshake on port 443..."
+          echo | openssl s_client -connect ${{ inputs.registry_host }}:443 -servername ${{ inputs.registry_host }} 2>&1 | head -30 || echo "SSL handshake failed"
+
+      - name: Test Simplestreams Registry
+        id: test_registry
+        continue-on-error: true
+        run: |
+          echo "📁 Testing Simplestreams Registry"
+          echo "==============================================="
+
+          echo "🔍 Testing simplestreams endpoints..."
+
+                    # Test root endpoint
+          echo "Testing root endpoint (/):"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/ 2>&1 || echo "Root endpoint failed"
+
+          # Test streams directory
+          echo "Testing streams/v1/ directory:"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/streams/v1/ 2>&1 || echo "Streams directory failed"
+
+          # Test index.json
+          echo "Testing streams/v1/index.json:"
+          curl -s -k -m 10 https://${{ inputs.registry_host }}/streams/v1/index.json | head -10 2>&1 || echo "Index.json not found or empty"
+
+          # Test images directory
+          echo "Testing images/ directory:"
+          curl -I -k -m 10 https://${{ inputs.registry_host }}/images/ 2>&1 || echo "Images directory failed"
+
+      - name: Test Incus Client Integration
+        continue-on-error: true
+        run: |
+          echo "📡 Testing Incus Client Integration"
+          echo "=================================="
+
+          echo "📡 Adding simplestreams remote..."
+          incus remote add test-registry https://${{ inputs.registry_host }} --protocol=simplestreams --public 2>&1 || {
+            echo "❌ Failed to add simplestreams remote"
+            echo "This may be normal if the registry is empty"
+          }
+
+          # Test listing images
+          echo "📋 Testing image listing from registry..."
+          incus image list test-registry: 2>&1 || {
+            echo "❌ Failed to list images from registry"
+            echo "Registry may be empty or not properly configured"
+          }
+
+          # Test remote info
+          echo "🔍 Testing remote info..."
+          incus remote list 2>&1 || echo "Remote list failed"
+
+      - name: HTTP Response Code Analysis
+        continue-on-error: true
+        run: |
+          echo "🔬 HTTP Response Code Analysis"
+          echo "============================="
+
+          echo "Testing simplestreams endpoints for response codes..."
+
+                    echo "Static file endpoints:"
+          curl -s -o /dev/null -w "GET / → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/ || echo "Request failed"
+          curl -s -o /dev/null -w "GET /streams/v1/ → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/streams/v1/ || echo "Request failed"
+          curl -s -o /dev/null -w "GET /streams/v1/index.json → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/streams/v1/index.json || echo "Request failed"
+          curl -s -o /dev/null -w "GET /images/ → HTTP %{http_code}\n" -k https://${{ inputs.registry_host }}/images/ || echo "Request failed"
+
+          echo "Testing forbidden methods (should return 405):"
+          curl -s -o /dev/null -w "POST / → HTTP %{http_code}\n" -k -X POST https://${{ inputs.registry_host }}/ || echo "Request failed"
+          curl -s -o /dev/null -w "PUT /streams/v1/index.json → HTTP %{http_code}\n" -k -X PUT https://${{ inputs.registry_host }}/streams/v1/index.json || echo "Request failed"
+          curl -s -o /dev/null -w "DELETE /images/ → HTTP %{http_code}\n" -k -X DELETE https://${{ inputs.registry_host }}/images/ || echo "Request failed"
+
+      - name: Test Content Types and Headers
+        continue-on-error: true
+        run: |
+          echo "📄 Testing Content Types and Security Headers"
+          echo "============================================="
+
+                    echo "Testing JSON content type:"
+          curl -I -k https://${{ inputs.registry_host }}/streams/v1/index.json 2>&1 | grep -i "content-type" || echo "No JSON content type header"
+
+          echo "Testing security headers:"
+          curl -I -k https://${{ inputs.registry_host }}/ 2>&1 | grep -E "(X-Content-Type-Options|X-Frame-Options|X-XSS-Protection)" || echo "Security headers not found"
+
+          echo "Testing CORS headers:"
+          curl -I -k https://${{ inputs.registry_host }}/ 2>&1 | grep -i "access-control" || echo "CORS headers not found"
+
+      - name: Cleanup Test Remotes
+        continue-on-error: true
+        run: |
+          echo "🧹 Cleaning up test remotes..."
+          incus remote remove test-registry 2>/dev/null || echo "No test-registry remote to remove"
+
+      - name: Summary
+        run: |
+          echo "📊 Test Summary"
+          echo "==============="
+          echo "✅ Network connectivity tests completed"
+          echo "✅ SSL/TLS tests completed"
+          echo "✅ Simplestreams endpoint tests completed"
+          echo "✅ Incus client integration tests completed"
+          echo "✅ HTTP response code analysis completed"
+          echo "✅ Content type and security header tests completed"
+          echo ""
+          echo "🔍 Check the above logs for any specific failures"
+          echo "📋 A working simplestreams registry should:"
+          echo "   - Return HTTP 200 for GET requests to valid endpoints"
+          echo "   - Return HTTP 405 for forbidden methods (POST, PUT, DELETE)"
+          echo "   - Serve JSON files with proper content-type headers"
+          echo "   - Include security headers (X-Content-Type-Options, etc.)"
+          echo "   - Support CORS headers for cross-origin requests"

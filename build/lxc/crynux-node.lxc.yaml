@@ -1,0 +1,71 @@
+# build/lxc/crynux-node.lxc.yaml
+image:
+  description: Crynux Node LXC Image
+  distribution: crynux-node
+  release: RELEASE_VERSION
+  variant: BLOCKCHAIN_NAME
+  architecture: amd64
+
+source:
+  downloader: debootstrap
+  url: http://archive.ubuntu.com/ubuntu/
+  suite: jammy
+  components: ["main", "universe"]
+
+# For distrobuilder v3+, GPG key handling is done by copying the file
+# into the image explicitly, using the 'copy' generator.
+files:
+  - generator: copy
+    path: /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg
+    source: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    mode: "0644"
+  - generator: copy
+    path: /crynux-node.service
+    source: build/lxc/crynux-node.service
+    mode: "0644"
+  - generator: copy
+    path: /app-source
+    source: .
+
+packages:
+  manager: apt
+  update: true
+  cleanup: true
+  sets:
+    - action: install
+      packages:
+        # Base dependencies from Dockerfile
+        - python3.10
+        - python3.10-venv
+        - python3.10-dev
+        - python3-pip
+        - curl
+        - build-essential
+        - libssl-dev
+        - libffi-dev
+        - ffmpeg
+        - libsm6
+        - libxext6
+        - wget
+        # For Node.js/yarn to build web UI
+        - ca-certificates
+        - gnupg
+        # For Go
+        - git
+
+actions:
+  - trigger: post-files
+    action: |
+      #!/bin/sh
+      set -eux
+      cd /app-source
+      chmod +x ./build/lxc/build.sh
+      ./build/lxc/build.sh
+  - trigger: post-files
+    action: |
+      #!/bin/sh
+      set -eux
+      echo "Cleaning up build-time packages..."
+      apt-get remove --purge -y build-essential python3.10-dev libssl-dev libffi-dev curl wget git gnupg nodejs
+      apt-get autoremove -y
+      apt-get clean
