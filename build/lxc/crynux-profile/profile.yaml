@@ -1,4 +1,4 @@
-description: "Crynux Node Profile for Dymension Network"
+description: Crynux Node LXC Profile
 devices:
   config:
     path: /app/config
@@ -19,4 +19,4 @@ devices:
     connect: tcp:127.0.0.1:7412
     listen: tcp:0.0.0.0:7412
     type: proxy
-name: crynux-node-dymension
+name: crynux-node
