@@ -85,7 +85,7 @@ jobs:
           echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
 
           # Replace placeholders in LXC YAML
-          sed -i "s/RELEASE_VERSION/${VERSION}/g" build/lxc/crynux-node.lxc.yaml
+          sed -i "s/RELEASE_VERSION/${IMAGE_TAG}/g" build/lxc/crynux-node.lxc.yaml
           sed -i "s/BLOCKCHAIN_NAME/${BLOCKCHAIN}/g" build/lxc/crynux-node.lxc.yaml
 
           echo "Updated LXC YAML file:"
