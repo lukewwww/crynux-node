@@ -11,6 +11,9 @@ on:
         description: 'Blockchain'
         required: true
         default: 'dymension'
+      tag:
+        description: 'Git tag to build from (if not specified, use selected branch with git hash)'
+        required: false
 
 jobs:
   build-and-upload:
@@ -33,6 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
+          ref: ${{ inputs.tag || github.ref }}
           submodules: recursive
 
       - name: Set the config files
@@ -44,12 +48,12 @@ jobs:
           # Get commit hash for version
           SHA_SHORT=$(git rev-parse --short HEAD)
 
-          # Determine version based on ref type
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            # This is a tag build - use tag name as version
-            VERSION="${{ github.ref_name }}"
+          # Determine version based on tag input
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            # Use specified tag as version
+            VERSION="${{ inputs.tag }}"
           else
-            # This is a debug build - use commit hash
+            # Use selected branch with git hash
             VERSION="${SHA_SHORT}"
           fi
 
