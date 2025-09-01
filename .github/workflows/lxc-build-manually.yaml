@@ -12,7 +12,10 @@ on:
         required: true
         default: 'dymension'
       tag:
-        description: 'Git tag to build from (if not specified, use selected branch with git hash)'
+        description: 'Git tag/branch to checkout code from (if not specified, use selected branch)'
+        required: false
+      image_tag:
+        description: 'Tag name for the built image (if not specified, use git hash for branch or tag name for git tag)'
         required: false
 
 jobs:
@@ -48,23 +51,37 @@ jobs:
           # Get commit hash for version
           SHA_SHORT=$(git rev-parse --short HEAD)
 
-          # Determine version based on tag input
+          # Determine code version for internal use
           if [[ -n "${{ inputs.tag }}" ]]; then
-            # Use specified tag as version
+            # Use specified tag as internal version
             VERSION="${{ inputs.tag }}"
           else
-            # Use selected branch with git hash
+            # Use git hash for internal version
             VERSION="${SHA_SHORT}"
           fi
 
-          echo "Using version: ${VERSION}"
+          # Determine image tag for naming
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            # Use specified image tag
+            IMAGE_TAG="${{ inputs.image_tag }}"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            # Use code tag as image tag
+            IMAGE_TAG="${{ inputs.tag }}"
+          else
+            # Use git hash as image tag
+            IMAGE_TAG="${SHA_SHORT}"
+          fi
+
+          echo "Using code version: ${VERSION}"
+          echo "Using image tag: ${IMAGE_TAG}"
           echo "Using blockchain: ${BLOCKCHAIN}"
 
           # Export for later steps
           echo "sha_short=${SHA_SHORT}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
           # Create a full version that includes blockchain for file naming
-          FULL_VERSION="${VERSION}-${BLOCKCHAIN}"
+          FULL_VERSION="${IMAGE_TAG}-${BLOCKCHAIN}"
           echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
 
           # Replace placeholders in LXC YAML
