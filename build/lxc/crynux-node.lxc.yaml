@@ -26,6 +26,9 @@ files:
   - generator: copy
     path: /app-source
     source: .
+  - generator: copy
+    path: /etc/systemd/network/10-eth0.network
+    source: build/lxc/10-eth0.network
 
 packages:
   manager: apt

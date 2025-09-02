@@ -1,3 +1,4 @@
+#!/bin/bash
 # Start crynux node from docker
 #   bash start.sh run
 
@@ -10,4 +11,4 @@ if [ ! -f config/config.yml ]; then
 fi
 
 # Start the node
-python3 -m crynux_server.main $1
+/app/venv/bin/python3 -m crynux_server.main $1
