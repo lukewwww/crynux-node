@@ -17,6 +17,11 @@ on:
       image_tag:
         description: 'Tag name for the built image (if not specified, use git hash for branch or tag name for git tag)'
         required: false
+      latest:
+        description: 'Tag the image as latest for the selected blockchain'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-and-upload:
@@ -155,12 +160,14 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         env:
           VERSION: ${{ steps.update-yaml.outputs.full_version }}
+          LATEST: ${{ inputs.latest }}
+          BLOCKCHAIN: ${{ env.BLOCKCHAIN }}
         with:
           host: ${{ secrets.REGISTRY_HOST }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           key: ${{ secrets.REGISTRY_SSH_KEY }}
           port: ${{ secrets.REGISTRY_PORT }}
-          envs: VERSION
+          envs: VERSION,LATEST,BLOCKCHAIN
           script_path: build/lxc/process-lxc-images.sh
           command_timeout: "30m"
 

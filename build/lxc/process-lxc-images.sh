@@ -35,10 +35,18 @@ process_image() {
     # incus-simplestreams processes build-incus format: incus.tar.xz and rootfs.squashfs
     log "Adding Incus image to simplestreams repository..."
 
-    incus-simplestreams add \
-        "$incus_file" "$rootfs_file" \
-        --alias "crynux-node:$version" \
+    local -a cmd=(incus-simplestreams add
+        "$incus_file" "$rootfs_file"
+        --alias "crynux-node:$version"
         --no-default-alias
+    )
+
+    if [[ "$LATEST" == "true" ]]; then
+        log "Adding latest alias for blockchain: $BLOCKCHAIN"
+        cmd+=(--alias "crynux-node:latest-$BLOCKCHAIN")
+    fi
+
+    "${cmd[@]}"
 
     if [[ $? -eq 0 ]]; then
         log "Successfully added image crynux-node:$version"
@@ -55,15 +63,36 @@ process_image() {
 }
 
 # Main execution
-# Support both command line argument and environment variable
-if [[ $# -eq 1 ]]; then
+# Support both command line arguments and environment variables, with arguments taking precedence.
+
+# 1. VERSION (Required)
+if [[ -n "$1" ]]; then
     VERSION="$1"
-elif [[ -n "$VERSION" ]]; then
-    # Use environment variable if available
-    VERSION="$VERSION"
-else
-    echo "Usage: $0 <version> or set VERSION environment variable"
+fi
+if [[ -z "$VERSION" ]]; then
+    echo "Error: Version is not specified."
+    echo "Usage: $0 <version> [blockchain] [latest]"
+    echo "Alternatively, set the VERSION environment variable."
     exit 1
+fi
+
+# 2. BLOCKCHAIN (Required)
+if [[ -n "$2" ]]; then
+    BLOCKCHAIN="$2"
+fi
+if [[ -z "$BLOCKCHAIN" ]]; then
+    echo "Error: Blockchain is not specified."
+    echo "Usage: $0 <version> <blockchain> [latest]"
+    echo "Alternatively, set the BLOCKCHAIN environment variable."
+    exit 1
+fi
+
+# 3. LATEST (Optional, defaults to false)
+if [[ -n "$3" ]]; then
+    LATEST="$3"
+fi
+if [[ -z "$LATEST" ]]; then
+    LATEST="false"
 fi
 
 process_image "$VERSION"
