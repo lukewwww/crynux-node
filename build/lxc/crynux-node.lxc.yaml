@@ -57,6 +57,11 @@ packages:
         - git
 
 actions:
+  - trigger: post-packages
+    action: |
+      #!/bin/sh
+      set -eux
+      systemctl enable systemd-networkd
   - trigger: post-files
     action: |
       #!/bin/sh
