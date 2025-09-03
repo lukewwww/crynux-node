@@ -45,11 +45,8 @@ async def _stop(
                 privkey=config.ethereum.privkey,
             )
             await contracts.init(
-                node_contract_address=config.ethereum.contract.node,
-                task_contract_address=config.ethereum.contract.task,
-                qos_contract_address=config.ethereum.contract.qos,
-                task_queue_contract_address=config.ethereum.contract.task_queue,
-                netstats_contract_address=config.ethereum.contract.netstats,
+                credits_contract_address=config.ethereum.contract.credits,
+                node_staking_contract_address=config.ethereum.contract.node_staking,
             )
         if relay is None:
             assert base_url is not None
@@ -60,7 +57,7 @@ async def _stop(
                 tx_state_cache_cls=tx_state_cache_cls,
             )
         download_model_cache = download_model_cache_cls()
-        state_manager = NodeStateManager(state_cache=state_cache, download_model_cache=download_model_cache, contracts=contracts, relay=relay)
+        state_manager = NodeStateManager(config=config, state_cache=state_cache, download_model_cache=download_model_cache, contracts=contracts, relay=relay)
 
     try:
         waiter = await state_manager.stop(option=option)

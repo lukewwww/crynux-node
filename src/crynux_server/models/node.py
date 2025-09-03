@@ -83,3 +83,9 @@ class NodeScoreState(BaseModel):
     qos_score: float
     staking_score: float
     prob_weight: float
+
+
+class ChainNodeStakingInfo(BaseModel):
+    node_address: str
+    staked_balance: int
+    staked_credits: int

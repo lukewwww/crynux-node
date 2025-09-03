@@ -130,11 +130,9 @@ class DBConfig(BaseModel):
 
 
 class Contract(BaseModel):
-    node: str
-    task: str
-    qos: Optional[str] = None
-    task_queue: Optional[str] = None
-    netstats: Optional[str] = None
+    benefit_address: str
+    credits: str
+    node_staking: str
 
 
 class Ethereum(BaseModel):
@@ -147,6 +145,8 @@ class Ethereum(BaseModel):
     gas_price: Optional[int] = None
     max_fee_per_gas: Optional[int] = None
     max_priority_fee_per_gas: Optional[int] = None
+
+    network: str
 
     contract: Contract
 

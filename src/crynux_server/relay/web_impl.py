@@ -4,7 +4,8 @@ import shutil
 import tempfile
 from contextlib import ExitStack
 from datetime import datetime
-from typing import Any, BinaryIO, Dict, List, Optional
+from typing import Any, Awaitable, BinaryIO, Callable, Dict, List, Optional, Protocol
+from functools import wraps
 
 import httpx
 from anyio import open_file, to_thread, wrap_file
@@ -43,12 +44,29 @@ def _process_resp(resp: httpx.Response, method: str):
         raise RelayError(resp.status_code, method, message) from e
 
 
+def _web_relay_restart_pool_error(func):
+    @wraps(func)
+    async def wrapper(self: 'WebRelay', *args: Any, **kwargs: Any) -> Any:
+        try:
+            return await func(self, *args, **kwargs)
+        except httpx.PoolTimeout as e:
+            await self.restart_client()
+            raise e
+
+    return wrapper
+
+
 class WebRelay(Relay):
     def __init__(self, base_url: str, privkey: str) -> None:
         super().__init__()
+        self.base_url = base_url
         self.client = httpx.AsyncClient(base_url=base_url, timeout=30)
         self.signer = Signer(privkey=privkey)
         self._node_address = get_address_from_privkey(privkey)
+
+    async def restart_client(self):
+        await self.client.aclose()
+        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30)
 
     @property
     def node_address(self):
@@ -56,6 +74,7 @@ class WebRelay(Relay):
 
     """ task related """
 
+    @_web_relay_restart_pool_error
     async def create_task(
         self,
         task_id_commitment: bytes,
@@ -96,6 +115,7 @@ class WebRelay(Relay):
         data = content["data"]
         return RelayTask.model_validate(data)
 
+    @_web_relay_restart_pool_error
     async def get_checkpoint(
         self, task_id_commitment: bytes, result_checkpoint_dir: str
     ):
@@ -118,6 +138,7 @@ class WebRelay(Relay):
                 shutil.unpack_archive, checkpoint_file, result_checkpoint_dir
             )
 
+    @_web_relay_restart_pool_error
     async def get_task(self, task_id_commitment: bytes) -> RelayTask:
         task_id_commitment_hex = HexBytes(task_id_commitment).hex()
         input = {"task_id_commitment": task_id_commitment_hex}
@@ -132,6 +153,7 @@ class WebRelay(Relay):
         data = content["data"]
         return RelayTask.model_validate(data)
 
+    @_web_relay_restart_pool_error
     async def report_task_error(self, task_id_commitment: bytes, task_error: TaskError):
         task_id_commitment_hex = HexBytes(task_id_commitment).hex()
         input = {"task_id_commitment": task_id_commitment_hex, "task_error": task_error}
@@ -147,6 +169,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "reportTaskError")
 
+    @_web_relay_restart_pool_error
     async def submit_task_score(self, task_id_commitment: bytes, score: bytes):
         task_id_commitment_hex = HexBytes(task_id_commitment).hex()
         score_hex = HexBytes(score).hex()
@@ -159,6 +182,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "submitTaskScore")
 
+    @_web_relay_restart_pool_error
     async def abort_task(
         self, task_id_commitment: bytes, abort_reason: TaskAbortReason
     ):
@@ -179,6 +203,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "abortTask")
 
+    @_web_relay_restart_pool_error
     async def upload_task_result(
         self,
         task_id_commitment: bytes,
@@ -219,6 +244,7 @@ class WebRelay(Relay):
             if message != "success":
                 raise RelayError(resp.status_code, "uploadTaskResult", message)
 
+    @_web_relay_restart_pool_error
     async def get_result(self, task_id_commitment: bytes, index: int, dst: BinaryIO):
         task_id_commitment_hex = HexBytes(task_id_commitment).hex()
         input = {"task_id_commitment": task_id_commitment_hex, "index": str(index)}
@@ -235,6 +261,7 @@ class WebRelay(Relay):
             async for chunk in resp.aiter_bytes():
                 await async_dst.write(chunk)
 
+    @_web_relay_restart_pool_error
     async def get_result_checkpoint(
         self, task_id_commitment: bytes, result_checkpoint_dir: str
     ):
@@ -259,6 +286,7 @@ class WebRelay(Relay):
 
     """ auxiliary """
 
+    @_web_relay_restart_pool_error
     async def now(self) -> int:
         resp = await self.client.get("/v1/now")
         resp = _process_resp(resp, "now")
@@ -267,11 +295,13 @@ class WebRelay(Relay):
         now = data["now"]
         return now
 
+    @_web_relay_restart_pool_error
     async def close(self):
         await self.client.aclose()
 
     """ node related """
 
+    @_web_relay_restart_pool_error
     async def node_get_node_info(self) -> NodeInfo:
         resp = await self.client.get(
             f"/v2/node/{self.node_address}",
@@ -281,11 +311,13 @@ class WebRelay(Relay):
         data = content["data"]
         return NodeInfo.model_validate(data)
 
+    @_web_relay_restart_pool_error
     async def node_join(
-        self, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
+        self, network: str, gpu_name: str, gpu_vram: int, model_ids: List[str], version: str, staking_amount: int
     ):
         input = {
             "address": self.node_address,
+            "network": network,
             "gpu_name": gpu_name,
             "gpu_vram": gpu_vram,
             "model_ids": model_ids,
@@ -296,6 +328,7 @@ class WebRelay(Relay):
         resp = await self.client.post(
             f"/v2/node/{self.node_address}/join",
             json={
+                "network": network,
                 "gpu_name": gpu_name,
                 "gpu_vram": gpu_vram,
                 "model_ids": model_ids,
@@ -307,6 +340,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "nodeJoin")
 
+    @_web_relay_restart_pool_error
     async def node_report_model_downloaded(self, model_id: str):
         input = {"address": self.node_address, "model_id": model_id}
         timestamp, signature = self.signer.sign(input)
@@ -320,6 +354,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "nodeReportModelDownload")
 
+    @_web_relay_restart_pool_error
     async def node_pause(self):
         input = {"address": self.node_address}
         timestamp, signature = self.signer.sign(input)
@@ -329,6 +364,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "nodePause")
 
+    @_web_relay_restart_pool_error
     async def node_quit(self):
         input = {"address": self.node_address}
         timestamp, signature = self.signer.sign(input)
@@ -338,6 +374,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "nodeQuit")
 
+    @_web_relay_restart_pool_error
     async def node_resume(self):
         input = {"address": self.node_address}
         timestamp, signature = self.signer.sign(input)
@@ -347,6 +384,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "nodeResume")
 
+    @_web_relay_restart_pool_error
     async def node_get_current_task(self) -> bytes:
         resp = await self.client.get(
             f"/v1/node/{self.node_address}/task",
@@ -359,6 +397,7 @@ class WebRelay(Relay):
         )
         return bytes.fromhex(task_id_commitment[2:])
 
+    @_web_relay_restart_pool_error
     async def node_update_version(self, version: str):
         input = {"address": self.node_address, "version": version}
         timestamp, signature = self.signer.sign(input)
@@ -370,6 +409,7 @@ class WebRelay(Relay):
 
     """ balance related """
 
+    @_web_relay_restart_pool_error
     async def get_balance(self, address: Optional[str] = None) -> int:
         if address is None:
             address = self.node_address
@@ -381,6 +421,7 @@ class WebRelay(Relay):
         balance = content["data"]
         return Web3.to_wei(balance, "wei")
     
+    @_web_relay_restart_pool_error
     async def get_staking_amount(self) -> int:
         resp = await self.client.get(
             f"/v1/staking/{self.node_address}",
@@ -390,6 +431,7 @@ class WebRelay(Relay):
         staking_amount = content["data"]
         return Web3.to_wei(staking_amount, "wei")
 
+    @_web_relay_restart_pool_error
     async def transfer(self, amount: int, to_addr: str):
         input = {"from": self.node_address, "value": str(amount), "to": to_addr}
         timestamp, signature = self.signer.sign(input)
@@ -404,6 +446,7 @@ class WebRelay(Relay):
         )
         resp = _process_resp(resp, "transfer")
 
+    @_web_relay_restart_pool_error
     async def get_events(
         self,
         start_id: int,
@@ -435,6 +478,7 @@ class WebRelay(Relay):
             events.append(load_event(id, task_type, args))
         return events
 
+    @_web_relay_restart_pool_error
     async def get_current_event_id(
         self,
         event_type: Optional[EventType] = None,

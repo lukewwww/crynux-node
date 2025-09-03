@@ -12,7 +12,7 @@ from web3.types import TxParams, TxReceipt, BlockIdentifier, BlockData
 
 from crynux_server.config import TxOption
 
-from . import network_stats, node, qos, task, task_queue
+from . import benefit_address, credits, node_staking
 from .exceptions import TxRevertedError
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
@@ -37,11 +37,9 @@ class ProviderType(IntEnum):
 
 
 class Contracts(object):
-    node_contract: node.NodeContract
-    task_contract: task.TaskContract
-    qos_contract: qos.QOSContract
-    task_queue_contract: task_queue.TaskQueueContract
-    netstats_contract: network_stats.NetworkStatsContract
+    benefit_address_contract: benefit_address.BenefitAddressContract
+    credits_contract: credits.CreditsContract
+    node_staking_contract: node_staking.NodeStakingContract
 
     def __init__(
         self,
@@ -61,7 +59,7 @@ class Contracts(object):
             provider_path=provider_path,
             pool_size=pool_size,
             timeout=timeout,
-            rps=rps
+            rps=rps,
         )
 
         self._initialized = False
@@ -69,11 +67,9 @@ class Contracts(object):
 
     async def init(
         self,
-        node_contract_address: Optional[str] = None,
-        task_contract_address: Optional[str] = None,
-        qos_contract_address: Optional[str] = None,
-        task_queue_contract_address: Optional[str] = None,
-        netstats_contract_address: Optional[str] = None,
+        credits_contract_address: Optional[str] = None,
+        benefit_address_contract_address: Optional[str] = None,
+        node_staking_contract_address: Optional[str] = None,
         *,
         option: "Optional[TxOption]" = None,
     ):
@@ -83,118 +79,57 @@ class Contracts(object):
                 self._account = w3.eth.default_account
                 _logger.info(f"Wallet address is {w3.eth.default_account}")
 
-                if qos_contract_address is not None:
-                    self.qos_contract = qos.QOSContract(
-                        self._w3_pool, w3.to_checksum_address(qos_contract_address)
+                if benefit_address_contract_address is not None:
+                    self.benefit_address_contract = (
+                        benefit_address.BenefitAddressContract(
+                            self._w3_pool,
+                            w3.to_checksum_address(benefit_address_contract_address),
+                        )
                     )
-                elif task_contract_address is None:
-                    # task contract has not been deployed, need deploy qos contract
-                    self.qos_contract = qos.QOSContract(self._w3_pool)
-                    waiter = await self.qos_contract.deploy(option=option, w3=w3)
-                    await waiter.wait()
-                    qos_contract_address = self.qos_contract.address
+                else:
+                    self.benefit_address_contract = (
+                        benefit_address.BenefitAddressContract(self._w3_pool)
+                    )
+                    waiter = await self.benefit_address_contract.deploy(
+                        option=option, w3=w3
+                    )
+                    await waiter.wait(w3=w3)
+                    benefit_address_contract_address = (
+                        self.benefit_address_contract.address
+                    )
 
-                if task_queue_contract_address is not None:
-                    self.task_queue_contract = task_queue.TaskQueueContract(
+                if credits_contract_address is not None:
+                    self.credits_contract = credits.CreditsContract(
+                        self._w3_pool, w3.to_checksum_address(credits_contract_address)
+                    )
+                else:
+                    self.credits_contract = credits.CreditsContract(self._w3_pool)
+                    waiter = await self.credits_contract.deploy(option=option, w3=w3)
+                    await waiter.wait(w3=w3)
+                    credits_contract_address = self.credits_contract.address
+
+                if node_staking_contract_address is not None:
+                    self.node_staking_contract = node_staking.NodeStakingContract(
                         self._w3_pool,
-                        w3.to_checksum_address(task_queue_contract_address),
-                    )
-                elif task_contract_address is None:
-                    # task contract has not been deployed, need deploy qos contract
-                    self.task_queue_contract = task_queue.TaskQueueContract(
-                        self._w3_pool
-                    )
-                    waiter = await self.task_queue_contract.deploy(option=option, w3=w3)
-                    await waiter.wait()
-                    task_queue_contract_address = self.task_queue_contract.address
-
-                if netstats_contract_address is not None:
-                    self.netstats_contract = network_stats.NetworkStatsContract(
-                        self._w3_pool, w3.to_checksum_address(netstats_contract_address)
-                    )
-                elif task_contract_address is None:
-                    # task contract has not been deployed, need deploy qos contract
-                    self.netstats_contract = network_stats.NetworkStatsContract(
-                        self._w3_pool
-                    )
-                    waiter = await self.netstats_contract.deploy(option=option, w3=w3)
-                    await waiter.wait()
-                    netstats_contract_address = self.netstats_contract.address
-
-                if node_contract_address is not None:
-                    self.node_contract = node.NodeContract(
-                        self._w3_pool, w3.to_checksum_address(node_contract_address)
+                        w3.to_checksum_address(node_staking_contract_address),
                     )
                 else:
-                    assert (
-                        qos_contract_address is not None
-                    ), "QOS contract address is None"
-                    assert (
-                        netstats_contract_address is not None
-                    ), "NetworkStats contract address is None"
-                    self.node_contract = node.NodeContract(self._w3_pool)
-                    waiter = await self.node_contract.deploy(
-                        qos_contract_address,
-                        netstats_contract_address,
+                    self.node_staking_contract = node_staking.NodeStakingContract(
+                        self._w3_pool
+                    )
+                    waiter = await self.node_staking_contract.deploy(
+                        credits_contract_address,
+                        benefit_address_contract_address,
                         option=option,
                         w3=w3,
                     )
-                    await waiter.wait()
+                    await waiter.wait(w3=w3)
+                    node_staking_contract_address = self.node_staking_contract.address
 
-                    node_contract_address = self.node_contract.address
-                    waiter = await self.qos_contract.update_node_contract_address(
-                        node_contract_address, option=option, w3=w3
+                    waiter = await self.credits_contract.set_staking_address(
+                        self.node_staking_contract.address, option=option, w3=w3
                     )
-                    await waiter.wait()
-
-                    waiter = await self.netstats_contract.update_node_contract_address(
-                        node_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait()
-
-                if task_contract_address is not None:
-                    self.task_contract = task.TaskContract(
-                        self._w3_pool, w3.to_checksum_address(task_contract_address)
-                    )
-                else:
-                    assert (
-                        qos_contract_address is not None
-                    ), "QOS contract address is None"
-                    assert (
-                        task_queue_contract_address is not None
-                    ), "Task queue contract address is None"
-                    assert (
-                        netstats_contract_address is not None
-                    ), "NetworkStats contract address is None"
-
-                    self.task_contract = task.TaskContract(self._w3_pool)
-                    waiter = await self.task_contract.deploy(
-                        node_contract_address,
-                        qos_contract_address,
-                        task_queue_contract_address,
-                        netstats_contract_address,
-                        option=option,
-                        w3=w3,
-                    )
-                    await waiter.wait()
-                    task_contract_address = self.task_contract.address
-
-                    waiter = await self.node_contract.update_task_contract_address(
-                        task_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait()
-                    waiter = await self.qos_contract.update_task_contract_address(
-                        task_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait()
-                    waiter = await self.task_queue_contract.update_task_contract_address(
-                        task_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait()
-                    waiter = await self.netstats_contract.update_task_contract_address(
-                        task_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait()
+                    await waiter.wait(w3=w3)
 
                 self._initialized = True
 
@@ -215,16 +150,10 @@ class Contracts(object):
         return await self.close()
 
     def get_contract(self, name: str):
-        if name == "node":
-            return self.node_contract
-        elif name == "task":
-            return self.task_contract
-        elif name == "qos":
-            return self.qos_contract
-        elif name == "task_queue":
-            return self.task_queue_contract
-        elif name == "netstats":
-            return self.netstats_contract
+        if name == "credits":
+            return self.credits_contract
+        elif name == "node_staking":
+            return self.node_staking_contract
         else:
             raise ValueError(f"unknown contract name {name}")
 
@@ -259,11 +188,11 @@ class Contracts(object):
     @property
     def account(self) -> ChecksumAddress:
         return self._w3_pool.account
-    
+
     @property
     def public_key(self) -> PublicKey:
         return self._w3_pool.public_key
-    
+
     @property
     def private_key(self) -> PrivateKey:
         return self._w3_pool._privkey
@@ -276,7 +205,7 @@ class Contracts(object):
         async with await self._w3_pool.get() as w3:
             block = await w3.eth.get_block(block_identifier=block_identifier)
             return block
-        
+
     async def get_tx_receipt(self, tx_hash: HexBytes) -> TxReceipt:
         async with await self._w3_pool.get() as w3:
             receipt = await w3.eth.get_transaction_receipt(tx_hash)
@@ -300,7 +229,24 @@ class Contracts(object):
             tx_hash = await w3.eth.send_transaction(opt)
             receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
             return receipt
+        
+    async def stake(self, amount: int, *, option: "Optional[TxOption]" = None):
+        async with await self._w3_pool.get() as w3:
+            value = 0
+            current_staking_info = await self.node_staking_contract.get_staking_info(
+                self._w3_pool.account, w3=w3
+            )
+            current_staking_amount = current_staking_info.staked_balance + current_staking_info.staked_credits
+            if amount == current_staking_amount:
+                return
+            
+            if amount > current_staking_amount:
+                diff = amount - current_staking_amount
+                stakable_credits = await self.credits_contract.get_credits(self._w3_pool.account, w3=w3)
+                if stakable_credits < diff:
+                    value = diff - stakable_credits
 
+            return await self.node_staking_contract.stake(amount, value=value, option=option, w3=w3)
 
 _default_contracts: Optional[Contracts] = None
 
