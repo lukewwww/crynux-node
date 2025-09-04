@@ -25,12 +25,12 @@ from crynux_server.download_model_cache import (DownloadModelCache,
                                                 get_download_model_cache)
 from crynux_server.relay import Relay, get_relay
 from crynux_server.relay.exceptions import RelayError
-from crynux_server.worker_manager import TaskInvalid
+from crynux_server.worker_manager import TaskInvalid, TaskExecutionError
 
 from .state_cache import (DownloadTaskStateCache, InferenceTaskStateCache,
                           get_download_task_state_cache,
                           get_inference_task_state_cache)
-from .utils import run_download_task, run_inference_task
+from .utils import run_download_task, run_inference_task, validate_score
 
 _logger = logging.getLogger(__name__)
 
@@ -355,9 +355,12 @@ class InferenceTaskRunner(InferenceTaskRunnerBase):
                     task_dir=task_dir,
                 )
                 _logger.info(f"Task {self.task_id_commitment.hex()} execution success")
+                score = b"".join(hashes)
+                if not validate_score(score):
+                    raise TaskExecutionError(f"Task {self.task_id_commitment.hex()} score {score.hex()} is invalid")
                 async with self.state_context():
                     self.state.files = files
-                    self.state.score = b"".join(hashes)
+                    self.state.score = score
                     self.state.checkpoint = checkpoint
             except TaskInvalid as e:
                 # If the task is invalid, report the error
@@ -373,6 +376,13 @@ class InferenceTaskRunner(InferenceTaskRunnerBase):
 
         # Submit task score for validation
         async def submit_task_score():
+            if not validate_score(self.state.score):
+                async with self.state_context():
+                    self.state.files = []
+                    self.state.score = b""
+                    self.state.checkpoint = None
+
+                raise TaskExecutionError(f"Task {self.task_id_commitment.hex()} score {self.state.score.hex()} is invalid")
             for _ in range(4):
                 try:
                     await self.relay.submit_task_score(
@@ -395,7 +405,7 @@ class InferenceTaskRunner(InferenceTaskRunnerBase):
 
         _logger.debug(f"task {self.task_id_commitment} state: {self.state}")
 
-        if len(self.state.files) == 0:
+        if len(self.state.files) == 0 or not validate_score(self.state.score):
             await execute_task_in_worker()
 
         await submit_task_score()
