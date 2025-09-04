@@ -84,3 +84,7 @@ async def run_download_task(
     )
     task_result = await worker_manager.send_task(task_input)
     await task_result.get()
+
+
+def validate_score(score: bytes) -> bool:
+    return len(score) > 0 and len(score) % 8 == 0 and not all(b==0 for b in score)
