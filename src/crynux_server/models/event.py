@@ -95,11 +95,30 @@ class TaskEndGroupSuccess(Event):
 class NodeKickedOut(Event):
     type: EventType = Field(default="NodeKickedOut", init_var=False, frozen=True)
     node_address: AddressFromStr
+    task_id_commitment: BytesFromHex
 
 
 class NodeSlashed(Event):
     type: EventType = Field(default="NodeSlashed", init_var=False, frozen=True)
     node_address: AddressFromStr
+    task_id_commitment: BytesFromHex
+
+
+class NodeJoin(Event):
+    type: EventType = Field(default="NodeJoin", init_var=False, frozen=True)
+    node_address: AddressFromStr
+
+
+class NodeQuit(Event):
+    type: EventType = Field(default="NodeQuit", init_var=False, frozen=True)
+    node_address: AddressFromStr
+    blockchain_transaction_id: int
+
+
+class NodeStaking(Event):
+    type: EventType = Field(default="NodeStaking", init_var=False, frozen=True)
+    node_address: AddressFromStr
+    staking_amount: str
 
 
 def load_event(id: int, type: EventType, args: str) -> Event:
