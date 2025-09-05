@@ -127,12 +127,14 @@ class NodeStateManager(object):
                 current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
                 while True:
                     staking_amount = Web3.to_wei(get_staking_amount(), "ether")
+                    node_status = (await self.state_cache.get_node_state()).status
                     if staking_amount != current_staking_amount:
-                        async with self._tx_session():
-                            waiter = await self.contracts.stake(staking_amount)
-                            assert waiter is not None
-                            await waiter.wait()
-                            await self.state_cache.set_tx_state(models.TxStatus.Success)
+                        if node_status != models.NodeStatus.Stopped and node_status != models.NodeStatus.PendingStop:
+                            async with self._tx_session():
+                                waiter = await self.contracts.stake(staking_amount)
+                                assert waiter is not None
+                                await waiter.wait()
+                                await self.state_cache.set_tx_state(models.TxStatus.Success)
                         current_staking_amount = staking_amount
                         _logger.info(f"Staking amount updated to {staking_amount}")
                     await sleep(interval)
