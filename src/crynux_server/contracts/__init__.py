@@ -12,7 +12,7 @@ from web3.types import TxParams, TxReceipt, BlockIdentifier, BlockData
 
 from crynux_server.config import TxOption
 
-from . import benefit_address, credits, node_staking, withdraw
+from . import benefit_address, credits, node_staking
 from .exceptions import TxRevertedError
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
@@ -40,7 +40,6 @@ class Contracts(object):
     benefit_address_contract: benefit_address.BenefitAddressContract
     credits_contract: credits.CreditsContract
     node_staking_contract: node_staking.NodeStakingContract
-    withdraw_contract: withdraw.WithdrawContract
 
     def __init__(
         self,
@@ -71,7 +70,6 @@ class Contracts(object):
         credits_contract_address: Optional[str] = None,
         benefit_address_contract_address: Optional[str] = None,
         node_staking_contract_address: Optional[str] = None,
-        withdraw_contract_address: Optional[str] = None,
         *,
         option: "Optional[TxOption]" = None,
     ):
@@ -132,17 +130,6 @@ class Contracts(object):
                         self.node_staking_contract.address, option=option, w3=w3
                     )
                     await waiter.wait(w3=w3)
-
-                if withdraw_contract_address is not None:
-                    self.withdraw_contract = withdraw.WithdrawContract(
-                        self._w3_pool,
-                        w3.to_checksum_address(withdraw_contract_address),
-                    )
-                else:
-                    self.withdraw_contract = withdraw.WithdrawContract(self._w3_pool)
-                    waiter = await self.withdraw_contract.deploy(option=option, w3=w3)
-                    await waiter.wait(w3=w3)
-                    withdraw_contract_address = self.withdraw_contract.address
 
                 self._initialized = True
 
