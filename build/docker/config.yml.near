@@ -12,16 +12,14 @@ ethereum:
 
   # The Blockchain params
   # Leave it as is for the private chain used in the Hydrogen Network
-  gas_price: 10
+  gas_price: 7000000000000
   gas: 8000000
 
   # The deployed addresses of the smart contracts
   contract:
-    node: "0xFc317b2e4649D5208c5CE6f2968338ef66841642"
-    task: "0xd3e246555302CDcCd06D420681aAB4aBA715c05A"
-    qos: "0xC3E755AB19183faFD1C55478bCa23d565Ec83eeB"
-    task_queue: "0x09219007aA3096029027A07ab04c5A711B8537b0"
-    netstats: "0xCF83DFC25E93687670AB87d31A24B6A892B9C08c"
+    benefit_address: "0x06aCfA4867C94F97F55De91B257a28480DE8D3b1"
+    credits: "0xB47E277aE7Cbb93949D7202b6e29e33f541EC262"
+    node_staking: "0xE15b5DD09f9867C8dD0FbC0f57216b440300c99d"
 
 # The database used to store the local state data
 # The data will not be large. A sqlite file is more than enough
@@ -33,7 +31,7 @@ db:
   filename: db/server.db
 
 # The URL of the Relay
-relay_url: "https://near.relay.crynux.io"
+relay_url: "https://relay.crynux.io"
 
 # The directory that stores the distribution files of the WebUI
 web_dist: dist
