@@ -31,7 +31,7 @@ db:
   filename: db/server.db
 
 # The URL of the Relay
-relay_url: "https://dy.relay.crynux.io"
+relay_url: "https://relay.crynux.io"
 
 # The directory that stores the distribution files of the WebUI
 web_dist: dist
