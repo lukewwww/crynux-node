@@ -91,7 +91,8 @@ const nodeStatus = reactive({
 const accountStatus = reactive({
     address: '',
     balance: 0,
-    staking: 0
+    staking: 0,
+    relay_balance: 0
 })
 
 const taskStatus = reactive({
@@ -229,6 +230,14 @@ const accountBalance = computed(() => {
         return '0'
     } else {
         return toEtherValue(accountStatus.balance)
+    }
+})
+
+const relayBalance = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.relay_balance)
     }
 })
 
@@ -904,7 +913,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <a-col :span="8">
                         <a-statistic title="CNX Balance" class="wallet-value" >
                             <template #formatter>
-                                <a-typography-text>-</a-typography-text>
+                                <a-typography-text>{{ accountBalance }}</a-typography-text>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -936,7 +945,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <a-col :span="12">
                         <a-statistic title="CNX Balance" class="wallet-value">
                             <template #formatter>
-                                <a-typography-text>{{ accountBalance }}</a-typography-text>
+                                <a-typography-text>{{ relayBalance }}</a-typography-text>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -1364,7 +1373,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
     >
         <a-alert
             v-if="showSuccessAlert"
-            message="Settings saved successfully. Please quit the network and join again to apply the settings."
+            description="Settings saved successfully. It may take a few moments for the changes to be reflected on the dashboard."
             type="success"
             show-icon
             style="margin-bottom: 24px;"
