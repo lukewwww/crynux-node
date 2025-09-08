@@ -21,6 +21,7 @@ import AccountAPI from '../api/v1/account'
 import config from '../config.json'
 import logger from '../log/log'
 import { useSystemStore } from '@/stores/system'
+/* global APP_VERSION, BigInt */
 
 const systemStore = useSystemStore()
 
@@ -652,7 +653,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 ].indexOf(nodeStatus.status) !== -1
               "
                         >
-                            <template #format="percent">
+                            <template #format>
                 <span style="font-size: 14px; color: lightgray">
                   <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING"
                   >Preparing</span
@@ -675,7 +676,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 ].indexOf(nodeStatus.status) !== -1
               "
                         >
-                            <template #format="percent">
+                            <template #format>
                 <span style="font-size: 14px; color: cornflowerblue">
                   <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_PAUSE"
                   >Pausing</span
@@ -771,7 +772,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :stroke-color="'cornflowerblue'"
                             v-if="taskStatus.status === 'idle'"
                         >
-                            <template #format="percent">
+                            <template #format>
                                 <span style="font-size: 14px; color: cornflowerblue">Idle</span>
                             </template>
                         </a-progress>
@@ -783,7 +784,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             status="success"
                             v-else-if="taskStatus.status === 'running'"
                         >
-                            <template #format="percent">
+                            <template #format>
                                 <span style="font-size: 14px">Running</span>
                             </template>
                         </a-progress>
@@ -795,7 +796,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :stroke-color="'lightgray'"
                             v-else
                         >
-                            <template #format="percent">
+                            <template #format>
                                 <span style="font-size: 14px; color: lightgray">Stopped</span>
                             </template>
                         </a-progress>
@@ -942,24 +943,14 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <a-col :span="12">
                         <a-statistic title="Action" class="wallet-value">
                             <template #formatter>
-                                <a-space>
-                                    <a-button
-                                        type="default"
-                                        size="small"
-                                        :disabled="accountStatus.address === ''"
-                                        @click="showTestTokenModal = true"
-                                    >
-                                        Deposit
-                                    </a-button>
-                                    <a-button
-                                        type="default"
-                                        size="small"
-                                        :disabled="accountStatus.address === ''"
-                                        @click="showWithdrawModal = true"
-                                    >
-                                        Withdraw
-                                    </a-button>
-                                </a-space>
+                                <a-button
+                                    type="default"
+                                    size="small"
+                                    :disabled="accountStatus.address === ''"
+                                    @click="showWithdrawModal = true"
+                                >
+                                    Withdraw
+                                </a-button>
                             </template>
                         </a-statistic>
                     </a-col>
@@ -1344,12 +1335,21 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
 
     <a-modal
         v-model:visible="showWithdrawModal"
-        title="Withdrawal Not Available"
+        title="Withdraw"
         :footer="null"
         @cancel="showWithdrawModal = false"
     >
-        <p>Withdrawal is not allowed during the testnet phase.</p>
-        <p>Please wait for the mainnet launch to withdraw your tokens.</p>
+        <div style="text-align: center; margin: 24px 0;">
+            <p>Please proceed to the Crynux Portal for withdrawals.</p>
+            <a-button
+                type="primary"
+                href="https://portal.crynux.io"
+                target="_blank"
+                style="margin-top: 24px;"
+            >
+                Crynux Portal
+            </a-button>
+        </div>
     </a-modal>
 
     <a-modal
