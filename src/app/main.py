@@ -11,13 +11,14 @@ import logging
 import os
 import platform
 import sys
+import shutil
 from logging.handlers import RotatingFileHandler
 
 import psutil
 import qasync
 from anyio import Event, create_task_group, sleep
 from PyQt6.QtCore import (QObject, QSettings, Qt, QtMsgType, QUrl, pyqtSlot,
-                          qInstallMessageHandler)
+                          qInstallMessageHandler, QCoreApplication, QStandardPaths)
 from PyQt6.QtGui import QAction, QDesktopServices, QIcon, QPixmap
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
@@ -322,7 +323,18 @@ if __name__ == "__main__":
 
         if system_name == "Darwin":
             resdir = os.path.join(os.path.dirname(app_path), "Resources")
-            crynux_config.set_data_dir(os.path.join(resdir, "data"))
+            QCoreApplication.setOrganizationName("crynux.io")
+            QCoreApplication.setApplicationName("Crynux Node")
+            app_support_dir = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+            os.makedirs(app_support_dir, exist_ok=True)
+
+            config_path = os.path.join(app_support_dir, "config", "config.yml")
+            if not os.path.exists(config_path):
+                source_config_path = os.path.join(resdir, "data", "config", "config.yml")
+                os.makedirs(os.path.dirname(config_path), exist_ok=True)
+                shutil.copy2(source_config_path, config_path)
+
+            crynux_config.set_data_dir(app_support_dir)
             config_file_path = crynux_config.config_file_path()
 
             _logger.debug(f"Config file path on mac: {config_file_path}")
