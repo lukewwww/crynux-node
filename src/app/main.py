@@ -325,7 +325,7 @@ if __name__ == "__main__":
             resdir = os.path.join(os.path.dirname(app_path), "Resources")
             QCoreApplication.setOrganizationName("crynux.io")
             QCoreApplication.setApplicationName("Crynux Node")
-            app_support_dir = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+            app_support_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
             os.makedirs(app_support_dir, exist_ok=True)
 
             config_path = os.path.join(app_support_dir, "config", "config.yml")
