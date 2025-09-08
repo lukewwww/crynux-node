@@ -6,10 +6,6 @@
 #### Near
 [crynux-node-helium-vRELEASE_VERSION-near-windows-x64.zip](WINDOWS_LINK_NEAR)
 
-#### Kasplex
-
-[crynux-node-helium-vRELEASE_VERSION-kasplex-windows-x64.zip](WINDOWS_LINK_KASPLEX)
-
 
 ### Mac
 
