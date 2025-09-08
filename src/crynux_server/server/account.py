@@ -14,10 +14,11 @@ _logger = logging.getLogger(__name__)
 class AccountInfo(BaseModel):
     address: str
     balance: str
+    relay_balance: str
     staking: str
 
 
-_account_info = AccountInfo(address="", balance="0", staking="0")
+_account_info = AccountInfo(address="", balance="0", relay_balance="0", staking="0")
 
 
 async def update_account_info(interval: int):
@@ -29,10 +30,14 @@ async def update_account_info(interval: int):
             contracts = get_contracts()
             relay = get_relay()
 
-            async def _update_balance():
-                chain_balance = await contracts.get_balance(contracts.account)
+            async def _update_relay_balance():
                 relay_balance = await relay.get_balance()
-                _account_info.balance = str(chain_balance + relay_balance)
+                _account_info.relay_balance = str(relay_balance)
+                _logger.debug(f"relay_balance: {_account_info.relay_balance}")
+
+            async def _update_balance():
+                balance = await contracts.get_balance(contracts.account)
+                _account_info.balance = str(balance)
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
@@ -41,6 +46,7 @@ async def update_account_info(interval: int):
                 _logger.debug(f"staking: {_account_info.staking}")
 
             async with create_task_group() as tg:
+                tg.start_soon(_update_relay_balance)
                 tg.start_soon(_update_balance)
                 tg.start_soon(_update_staking)
         except AssertionError:
