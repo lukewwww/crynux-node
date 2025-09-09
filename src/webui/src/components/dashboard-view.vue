@@ -1308,8 +1308,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-typography-link
                             >
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
-                            >Netstats
+                            <a-typography-link href="https://portal.crynux.io" target="_blank"
+                            >Portal
                             </a-typography-link
                             >
                         </a-space>
@@ -1323,8 +1323,6 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
                          alt="Dymension logo"/>
                     <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
-                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
-                         alt="Kasplex logo"/>
                 </div>
             </a-col>
         </a-row>
