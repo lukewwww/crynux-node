@@ -9,6 +9,7 @@ ethereum:
   # The JSON RPC endpoint of the Blockchain node
   # Here we use the private chain for the Hydrogen Network
   provider: "https://json-rpc.testnet-near.crynux.io"
+  network: "near"
 
   # The Blockchain params
   # Leave it as is for the private chain used in the Hydrogen Network
