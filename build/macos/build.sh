@@ -56,7 +56,7 @@ if [ "$IDENTITY" ]; then
     --password "$APPLE_PASS" || exit 1
 fi
 
-VERSION=2.6.0
+VERSION=2.7.0
 
 if [ "$IDENTITY" ]; then
   mv "dist/Crynux Node.dmg" "dist/crynux-node-helium-v${VERSION}-mac-arm64-signed.dmg" || exit 1
