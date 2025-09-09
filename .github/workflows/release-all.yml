@@ -42,6 +42,7 @@ jobs:
   build-the-lxc-images:
     needs: [prepare-version]
     strategy:
+      max-parallel: 1
       matrix:
         blockchain:
           - dymension
