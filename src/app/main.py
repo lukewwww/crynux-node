@@ -327,6 +327,7 @@ if __name__ == "__main__":
             QCoreApplication.setApplicationName("Crynux Node")
             app_support_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
             os.makedirs(app_support_dir, exist_ok=True)
+            os.makedirs(os.path.join(app_support_dir, "tmp"), exist_ok=True)
 
             config_path = os.path.join(app_support_dir, "config", "config.yml")
             if not os.path.exists(config_path):
