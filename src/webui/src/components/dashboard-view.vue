@@ -29,13 +29,13 @@ const showSuccessAlert = ref(false)
 const isSaving = ref(false)
 
 const isStakingAmountValid = computed(() => {
-    if (typeof editableSettings.staking_amount !== 'number') {
+    if (typeof settingsInModal.staking_amount !== 'number') {
         return false
     }
-    if (!Number.isInteger(editableSettings.staking_amount)) {
+    if (!Number.isInteger(settingsInModal.staking_amount)) {
         return false
     }
-    return editableSettings.staking_amount >= 400
+    return settingsInModal.staking_amount >= config.min_staking_amount
 })
 
 const appVersion = APP_VERSION
@@ -101,13 +101,15 @@ const taskStatus = reactive({
     num_total: 0
 })
 
+
 const settings = reactive({
-    staking_amount: 400
+    staking_amount: config.min_staking_amount
 })
 
-const editableSettings = reactive({
-    staking_amount: 400
+const settingsInModal = reactive({
+    staking_amount: config.min_staking_amount
 })
+
 
 const runnerVersion = ref('')
 
@@ -173,25 +175,53 @@ const isNodeJoined = computed(() => {
     ].includes(nodeStatus.status)
 })
 
-const toEtherValue = (bigNum) => {
-    if (bigNum === 0) return 0
+const GAS_FEE_MIN_WEI = BigInt(config.gas_fee_min_wei)
 
-    const decimals = (bigNum / BigInt(1e18)).toString()
-
-    let fractions = ((bigNum / BigInt(1e14)) % 10000n).toString()
-
-    while (fractions.length < 4) {
-        fractions = '0' + fractions
+const toEtherValue = (value) => {
+    try {
+        const big = BigInt(value)
+        if (big === 0n) return '0'
+        const decimals = (big / 1000000000000000000n).toString()
+        let fractions = ((big / 100000000000000n) % 10000n).toString()
+        while (fractions.length < 4) {
+            fractions = '0' + fractions
+        }
+        return decimals + '.' + fractions
+    } catch (e) {
+        return '0'
     }
-
-    return decimals + '.' + fractions
 }
 
-const ethEnough = () => {
+const trimTrailingZeros = (val) => {
+    if (typeof val !== 'string') return val
+    if (val.indexOf('.') === -1) return val
+    let [i, f] = val.split('.')
+    f = f.replace(/0+$/, '')
+    return f.length ? i + '.' + f : i
+}
+
+const gasEnough = () => {
+    if (!accountStatus.address) return false
+    return accountStatus.balance >= GAS_FEE_MIN_WEI
+}
+
+const startEnough = () => {
     if (!accountStatus.address) return false
     if (typeof settings.staking_amount !== 'number') return false
-    return accountStatus.balance >= BigInt(settings.staking_amount) * BigInt(1e18)
+    const required = BigInt(settings.staking_amount) * 1000000000000000000n + GAS_FEE_MIN_WEI
+    return accountStatus.balance >= required
 }
+
+const requiredStartTotalCNX = computed(() => {
+    if (typeof settings.staking_amount !== 'number') return '0'
+    const stakingWei = BigInt(settings.staking_amount) * 1000000000000000000n
+    const totalWei = stakingWei + GAS_FEE_MIN_WEI
+    return toEtherValue(totalWei)
+})
+
+const requiredStartTotalCNXAlert = computed(() => trimTrailingZeros(requiredStartTotalCNX.value))
+const gasFeeMinCNX = computed(() => toEtherValue(GAS_FEE_MIN_WEI))
+const gasFeeMinCNXAlert = computed(() => trimTrailingZeros(gasFeeMinCNX.value))
 
 const privateKeyUpdated = async () => {
     logger.debug('received privateKeyUpdated')
@@ -271,7 +301,7 @@ onMounted(async () => {
 
 watch(() => systemStore.showSettingsModal, (newValue) => {
     if (newValue) {
-        Object.assign(editableSettings, settings);
+        Object.assign(settingsInModal, settings)
         showSuccessAlert.value = false
     }
 })
@@ -284,10 +314,10 @@ onBeforeUnmount(() => {
 const handleSettingsSave = async () => {
     isSaving.value = true;
     try {
-        logger.info('Save settings', editableSettings)
-        await settingsAPI.updateSettings(editableSettings)
+        logger.info('Save settings', settingsInModal)
+        await settingsAPI.updateSettings(settingsInModal)
         apiContinuousErrorCount['settings'] = 0
-        Object.assign(settings, editableSettings)
+        Object.assign(settings, settingsInModal)
         showSuccessAlert.value = true
         setTimeout(() => {
             showSuccessAlert.value = false
@@ -396,7 +426,13 @@ const updateAccountInfo = async (ticket) => {
 
     if (ticket === uiUpdateCurrentTicket) {
         logger.debug('[' + ticket + '] Ticket is latest. Update the data.')
-        Object.assign(accountStatus, accountResp)
+        const normalized = {
+            address: accountResp.address || '',
+            balance: BigInt(accountResp.balance ?? 0),
+            staking: BigInt(accountResp.staking ?? 0),
+            relay_balance: BigInt(accountResp.relay_balance ?? 0)
+        }
+        Object.assign(accountStatus, normalized)
     } else {
         logger.debug('[' + ticket + '] Ticket is old. Discard the response')
     }
@@ -603,12 +639,12 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             ></a-alert>
             <a-alert
                 type="error"
-                :message="`Not enough tokens in the account. At least ${settings.staking_amount} CNXs are required.`"
+                :message="`Not enough tokens in the node wallet. Requires ${requiredStartTotalCNXAlert} CNX in total.`"
                 class="top-alert"
                 v-if="
           (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) &&
           accountStatus.address !== '' &&
-          !ethEnough()
+          !startEnough()
         "
             >
                 <template #action>
@@ -616,11 +652,21 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     </a-button>
                 </template>
                 <template #description>
-                    Get the test CNXs for free:
+                    Get test CNX for free:
                     <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}
                     </a-typography-link>
                 </template>
             </a-alert>
+            <a-alert
+                type="error"
+                :message="`Not enough tokens in the node wallet for gas. Requires at least ${gasFeeMinCNXAlert} CNX.`"
+                class="top-alert"
+                v-if="
+          [nodeAPI.NODE_STATUS_RUNNING, nodeAPI.NODE_STATUS_PAUSED].includes(nodeStatus.status) &&
+          accountStatus.address !== '' &&
+          !gasEnough()
+        "
+            ></a-alert>
         </a-col>
     </a-row>
     <a-row ref="cardsRow1" :gutter="[16, 16]">
@@ -706,6 +752,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PauseCircleOutlined)"
                                 @click="sendNodeAction('pause')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
+                                :disabled="!gasEnough()"
                             >Pause
                             </a-button
                             >
@@ -719,6 +766,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(LogoutOutlined)"
                                 @click="sendNodeAction('stop')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
+                                :disabled="!gasEnough()"
                             >Stop
                             </a-button
                             >
@@ -729,7 +777,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PlayCircleOutlined)"
                                 @click="sendNodeAction('start')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
-                                :disabled="!ethEnough()"
+                                :disabled="!startEnough()"
                             >Start
                             </a-button
                             >
@@ -751,6 +799,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 :icon="h(PlayCircleOutlined)"
                                 @click="sendNodeAction('resume')"
                                 :loading="isTxSending || nodeStatus.tx_status === nodeAPI.TX_STATUS_PENDING"
+                                :disabled="!gasEnough()"
                             >Resume
                             </a-button
                             >
@@ -1380,9 +1429,9 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             <a-form-item
                 label="Staking Amount"
                 :validate-status="isStakingAmountValid ? '' : 'error'"
-                :help="isStakingAmountValid ? 'Minimum staking amount is 400 CNX.' : 'Staking amount must be an integer and cannot be less than 400.'"
+                :help="isStakingAmountValid ? `Minimum staking amount is ${config.min_staking_amount} CNX.` : `Staking amount must be an integer and cannot be less than ${config.min_staking_amount}.`"
             >
-                <a-input-number v-model:value="editableSettings.staking_amount" prefix="CNX" style="width: 100%"/>
+                <a-input-number v-model:value="settingsInModal.staking_amount" prefix="CNX" style="width: 100%"/>
             </a-form-item>
         </a-form>
     </a-modal>

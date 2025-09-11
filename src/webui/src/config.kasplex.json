@@ -1,9 +1,11 @@
 {
     "base_url": "",
-    "discord_link": "https://discord.gg/JRkuY9FW49",
+    "discord_link": "",
     "log": {
         "level": "info"
     },
-    "block_explorer": "https://bb.dym.fyi/r/dev-crynux",
-    "network": "kasplex"
+    "block_explorer": "",
+    "network": "kasplex",
+    "min_staking_amount": 400,
+    "gas_fee_min_wei": "10000000000000000"
 }
