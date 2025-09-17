@@ -37,7 +37,8 @@ async def update_account_info(interval: int):
 
             async def _update_balance():
                 balance = await contracts.get_balance(contracts.account)
-                _account_info.balance = str(balance)
+                credits = await contracts.credits_contract.get_credits(contracts.account)
+                _account_info.balance = str(balance+credits)
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
