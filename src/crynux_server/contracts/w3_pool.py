@@ -34,7 +34,7 @@ class ProviderType(IntEnum):
 
 _W3PoolCallback = Callable[[int], Awaitable[None]]
 
-_invalid_nonce_pattern = re.compile(r"[Nn]once")
+_invalid_nonce_pattern = re.compile(r"nonce", re.IGNORECASE)
 
 
 class W3Guard(ABC):
