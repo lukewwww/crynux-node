@@ -185,6 +185,7 @@ class NodeStateManager(object):
             raise
         except (RelayError, AssertionError, ValueError, TxRevertedError) as e:
             _logger.error(f"tx error {str(e)}")
+            _logger.exception(e)
             with fail_after(5, shield=True):
                 await self.state_cache.set_tx_state(models.TxStatus.Error, str(e))
             raise

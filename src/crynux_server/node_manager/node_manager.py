@@ -617,11 +617,14 @@ class NodeManager(object):
             async with create_task_group() as tg:
                 self._tg = tg
 
-                async with self._worker_manager.wait_connected(timeout=30):
-                    version = self._worker_manager.version
-                    assert version is not None
-                    version_list = [int(v) for v in version.split(".")]
-                    assert len(version_list) == 3
+                try:
+                    async with self._worker_manager.wait_connected(timeout=30):
+                        version = self._worker_manager.version
+                        assert version is not None
+                        version_list = [int(v) for v in version.split(".")]
+                        assert len(version_list) == 3
+                except TimeoutError:
+                    raise ValueError("Worker is not connected within 30 seconds")
 
                 try:
                     async with create_task_group() as init_tg:
@@ -641,7 +644,7 @@ class NodeManager(object):
                     raise
                 except Exception as e:
                     _logger.exception(e)
-                    msg = f"Node manager init error: {str(e)}"
+                    msg = f"Node manager init error: {repr(e)}"
                     _logger.error(msg)
                     with fail_after(5, shield=True):
                         await self.state_cache.set_node_state(
@@ -707,7 +710,7 @@ class NodeManager(object):
             raise
         except Exception as e:
             _logger.exception(e)
-            msg = f"Node manager running error: {str(e)}"
+            msg = f"Node manager running error: {repr(e)}"
             _logger.error(msg)
             with fail_after(5, shield=True):
                 await self.state_cache.set_node_state(models.NodeStatus.Error, msg)
