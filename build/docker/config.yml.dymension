@@ -13,14 +13,14 @@ ethereum:
 
   # The Blockchain params
   # Leave it as is for the private chain used in the Hydrogen Network
-  gas_price: 10
+  gas_price: 700000000
   gas: 8000000
 
   # The deployed addresses of the smart contracts
   contract:
-    benefit_address: "0x3ec8130af8f71C134F3f59702E58BC6F8F0e9099"
-    credits: "0x8fA78AFD382c123Ee49150874D8D12cc73437631"
-    node_staking: "0xb030d5D8fF00159636F9198092Dda8f1f32F520C"
+    benefit_address: "0x2b70C7d900333Bd0DBc4be0cAfFcFAA931D118FA"
+    credits: "0xA06ACFDFcb199a0Bb238EB3BfBd87552D0F5f159"
+    node_staking: "0x07E149A0e372C2F54Df6358d021d700703D222D1"
 
 # The database used to store the local state data
 # The data will not be large. A sqlite file is more than enough
