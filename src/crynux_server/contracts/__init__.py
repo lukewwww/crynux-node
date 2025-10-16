@@ -227,8 +227,6 @@ class Contracts(object):
             opt["value"] = w3.to_wei(amount, "Wei")
             async with self._w3_pool.with_nonce(w3) as nonce:
                 opt["nonce"] = nonce
-                print(f"nonce: {nonce}")
-
             tx_hash = await w3.eth.send_transaction(opt)
             receipt = await w3.eth.wait_for_transaction_receipt(tx_hash)
             return receipt
