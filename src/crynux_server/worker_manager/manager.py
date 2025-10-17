@@ -49,6 +49,9 @@ class WorkerManager(object):
             external_cache_dir = self.config.task_config.external_cache_dir
             output_dir = self.config.task_config.output_dir
             worker_pid_file = self.config.task_config.worker_pid_file
+
+            for dirname in [script_dir, hf_cache_dir, external_cache_dir, output_dir, os.path.dirname(worker_pid_file)]:
+                os.makedirs(dirname, exist_ok=True)
         else:
             script_dir = ""
             patch_url = ""
@@ -93,9 +96,12 @@ class WorkerManager(object):
                 pid = int(f.read().strip())
             if psutil.pid_exists(pid):
                 process = psutil.Process(pid)
-                for proc in process.children(recursive=True):
-                    proc.kill()
-                process.kill()
+                cmdline = process.cmdline()
+                # check if the process is the worker process
+                if "crynux_worker_process" in " ".join(cmdline):
+                    for proc in process.children(recursive=True):
+                        proc.kill()
+                    process.kill()
 
         p = subprocess.Popen(args=args, env=envs)
         self._worker_process = p
