@@ -204,3 +204,8 @@ class UserStakingContract(ContractWrapper):
             "getAllNodeAddresses",
             w3=w3,
         )
+
+    async def get_all_node_commission_rates(
+        self, *, w3: Optional[AsyncWeb3] = None
+    ) -> Tuple[List[ChecksumAddress], List[int]]:
+        return await self._function_call("getAllNodeCommissionRates", w3=w3)
