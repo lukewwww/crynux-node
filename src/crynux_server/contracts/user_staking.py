@@ -55,7 +55,7 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def set_commission_rate(
+    async def set_delegator_share(
         self,
         rate: int,
         *,
@@ -63,7 +63,7 @@ class UserStakingContract(ContractWrapper):
         w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
-            "setCommissionRate",
+            "setDelegatorShare",
             rate=rate,
             option=option,
             w3=w3,
@@ -115,14 +115,14 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_node_commission_rate(
+    async def get_node_delegator_share(
         self,
         node_address: ChecksumAddress,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> int:
         return await self._function_call(
-            "getNodeCommissionRate",
+            "getNodeDelegatorShare",
             nodeAddress=node_address,
             w3=w3,
         )
@@ -205,7 +205,7 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_all_node_commission_rates(
+    async def get_all_node_delegator_shares(
         self, *, w3: Optional[AsyncWeb3] = None
     ) -> Tuple[List[ChecksumAddress], List[int]]:
-        return await self._function_call("getAllNodeCommissionRates", w3=w3)
+        return await self._function_call("getAllNodeDelegatorShares", w3=w3)
