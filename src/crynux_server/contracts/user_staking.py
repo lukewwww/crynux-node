@@ -57,14 +57,14 @@ class UserStakingContract(ContractWrapper):
 
     async def set_delegator_share(
         self,
-        rate: int,
+        share: int,
         *,
         option: "Optional[TxOption]" = None,
         w3: Optional[AsyncWeb3] = None,
     ):
         return await self._transaction_call(
             "setDelegatorShare",
-            rate=rate,
+            share=share,
             option=option,
             w3=w3,
         )
