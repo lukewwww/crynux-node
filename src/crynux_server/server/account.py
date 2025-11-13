@@ -12,13 +12,18 @@ _logger = logging.getLogger(__name__)
 
 
 class AccountInfo(BaseModel):
-    address: str
-    balance: str
-    relay_balance: str
-    staking: str
+    address: str = ""
+    balance: str = "0"
+    relay_balance: str = "0"
+    staking: str = "0"
+    delegator_staking: str = "0"
+    delegator_share: int = 0
+    delegator_num: int = 0
+    today_delegator_earnings: str = "0"
+    total_delegator_earnings: str = "0"
 
 
-_account_info = AccountInfo(address="", balance="0", relay_balance="0", staking="0")
+_account_info = AccountInfo()
 
 
 async def update_account_info(interval: int):
@@ -37,19 +42,47 @@ async def update_account_info(interval: int):
 
             async def _update_balance():
                 balance = await contracts.get_balance(contracts.account)
-                credits = await contracts.credits_contract.get_credits(contracts.account)
-                _account_info.balance = str(balance+credits)
+                credits = await contracts.credits_contract.get_credits(
+                    contracts.account
+                )
+                _account_info.balance = str(balance + credits)
                 _logger.debug(f"balance: {_account_info.balance}")
 
             async def _update_staking():
-                staking_info = await contracts.node_staking_contract.get_staking_info(contracts.account)
-                _account_info.staking = str(staking_info.staked_balance + staking_info.staked_credits)
+                staking_info = await contracts.node_staking_contract.get_staking_info(
+                    contracts.account
+                )
+                _account_info.staking = str(
+                    staking_info.staked_balance + staking_info.staked_credits
+                )
                 _logger.debug(f"staking: {_account_info.staking}")
+
+            async def _update_node_info():
+                node_info = await relay.node_get_node_info()
+                _account_info.delegator_staking = node_info.delegator_staking
+                _account_info.delegator_share = node_info.delegator_share
+                _account_info.delegator_num = node_info.delegators_num
+                _account_info.today_delegator_earnings = (
+                    node_info.today_delegator_earnings
+                )
+                _account_info.total_delegator_earnings = (
+                    node_info.total_delegator_earnings
+                )
+                _logger.debug(f"delegator_staking: {_account_info.delegator_staking}")
+                _logger.debug(f"delegator_share: {_account_info.delegator_share}")
+                _logger.debug(f"delegator_num: {_account_info.delegator_num}")
+                _logger.debug(
+                    f"today_delegator_earnings: {_account_info.today_delegator_earnings}"
+                )
+                _logger.debug(
+                    f"total_delegator_earnings: {_account_info.total_delegator_earnings}"
+                )
 
             async with create_task_group() as tg:
                 tg.start_soon(_update_relay_balance)
                 tg.start_soon(_update_balance)
                 tg.start_soon(_update_staking)
+                tg.start_soon(_update_node_info)
         except AssertionError:
             pass
         except get_cancelled_exc_class():

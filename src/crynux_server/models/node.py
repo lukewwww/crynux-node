@@ -40,6 +40,14 @@ class NodeInfo(BaseModel):
     prob_weight: float
     status: ChainNodeStatus
     version: str
+    operator_staking: str
+    delegator_staking: str
+    delegator_share: int
+    delegators_num: int
+    total_operator_earnings: str
+    today_operator_earnings: str
+    total_delegator_earnings: str
+    today_delegator_earnings: str
 
 
 class ChainNetworkNodeInfo(BaseModel):

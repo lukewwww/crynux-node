@@ -4,6 +4,7 @@ from fastapi import Depends
 from typing_extensions import Annotated
 
 from crynux_server.config import Config, get_config
+from crynux_server.contracts import Contracts, get_contracts
 from crynux_server.node_manager import (
     ManagerStateCache,
     NodeStateManager,
@@ -62,6 +63,9 @@ async def _get_system_info():
 async def _get_account_info():
     return get_account_info()
 
+async def _get_contracts():
+    return get_contracts()
+
 
 ConfigDep = Annotated[Config, Depends(_get_config)]
 ManagerStateCacheDep = Annotated[ManagerStateCache, Depends(_get_manager_state_cache)]
@@ -74,3 +78,4 @@ TaskStateCacheDep = Annotated[
 WorkerManagerDep = Annotated[WorkerManager, Depends(_get_worker_manager)]
 SystemInfoDep = Annotated[SystemInfo, Depends(_get_system_info)]
 AccountInfoDep = Annotated[AccountInfo, Depends(_get_account_info)]
+ContractsDep = Annotated[Contracts, Depends(_get_contracts)]
