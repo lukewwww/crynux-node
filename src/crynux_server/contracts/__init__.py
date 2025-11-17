@@ -117,7 +117,7 @@ class Contracts(object):
                     )
                 else:
                     self.user_staking_contract = user_staking.UserStakingContract(self._w3_pool)
-                    waiter = await self.user_staking_contract.deploy()
+                    waiter = await self.user_staking_contract.deploy(option=option, w3=w3)
                     await waiter.wait(w3=w3)
                     user_staking_contract_address = self.user_staking_contract.address
 
