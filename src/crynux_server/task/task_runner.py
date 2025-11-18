@@ -428,8 +428,9 @@ class InferenceTaskRunner(InferenceTaskRunnerBase):
                     if os.path.exists(dirname):
                         shutil.rmtree(dirname)
 
-            with fail_after(10, shield=True):
-                await to_thread.run_sync(delete_result_files, self.state.files)
+            if self.state.status != models.InferenceTaskStatus.EndInvalidated:
+                with fail_after(10, shield=True):
+                    await to_thread.run_sync(delete_result_files, self.state.files)
 
             del self.state
             self._cleaned = True
