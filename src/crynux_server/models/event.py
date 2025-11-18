@@ -121,6 +121,31 @@ class NodeStaking(Event):
     staking_amount: str
 
 
+class UserStaking(Event):
+    type: EventType = Field(default="UserStaking", init_var=False, frozen=True)
+    user_address: AddressFromStr
+    node_address: AddressFromStr
+    amount: str
+    network: str
+
+
+class UserUnstaking(Event):
+    type: EventType = Field(default="UserUnstaking", init_var=False, frozen=True)
+    user_address: AddressFromStr
+    node_address: AddressFromStr
+    amount: str
+    network: str
+
+
+class NodeDelegatorShareChanged(Event):
+    type: EventType = Field(
+        default="NodeDelegatorShareChanged", init_var=False, frozen=True
+    )
+    node_address: AddressFromStr
+    share: int
+    network: str
+
+
 def load_event(id: int, type: EventType, args: str) -> Event:
     try:
         cls = globals()[type]

@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 __all__ = ["NodeStakingContract"]
 
 
-
 class NodeStakingContract(ContractWrapper):
     def __init__(
         self, w3_pool: W3Pool, contract_address: Optional[ChecksumAddress] = None
@@ -32,6 +31,20 @@ class NodeStakingContract(ContractWrapper):
         return await self._transaction_call(
             "setAdminAddress",
             addr=addr,
+            option=option,
+            w3=w3,
+        )
+
+    async def set_min_stake_amount(
+        self,
+        stake_amount: int,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "setMinStakeAmount",
+            stakeAmount=stake_amount,
             option=option,
             w3=w3,
         )
