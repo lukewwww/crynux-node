@@ -19,7 +19,7 @@ class DelegatedStakingContract(ContractWrapper):
     def __init__(
         self, w3_pool: W3Pool, contract_address: Optional[ChecksumAddress] = None
     ):
-        super().__init__(w3_pool, "UserStaking", contract_address)
+        super().__init__(w3_pool, "DelegatedStaking", contract_address)
 
     async def set_min_stake_amount(
         self,
