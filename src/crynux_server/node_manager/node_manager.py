@@ -43,12 +43,14 @@ async def _make_contracts(
     rps: int,
     benefit_address_contract_address: Optional[str],
     credits_contract_address: Optional[str],
+    delegated_staking_contract_address: Optional[str],
     node_staking_contract_address: Optional[str],
 ) -> Contracts:
     contracts = Contracts(provider_path=provider, privkey=privkey, timeout=timeout, rps=rps)
     await contracts.init(
         benefit_address_contract_address=benefit_address_contract_address,
         credits_contract_address=credits_contract_address,
+        delegated_staking_contract_address=delegated_staking_contract_address,
         node_staking_contract_address=node_staking_contract_address,
     )
     await set_contracts(contracts)
@@ -199,6 +201,7 @@ class NodeManager(object):
                     rps=self.config.ethereum.rps,
                     benefit_address_contract_address=self.config.ethereum.contract.benefit_address,
                     credits_contract_address=self.config.ethereum.contract.credits,
+                    delegated_staking_contract_address=self.config.ethereum.contract.delegated_staking,
                     node_staking_contract_address=self.config.ethereum.contract.node_staking,
                 )
             if self._relay is None:
