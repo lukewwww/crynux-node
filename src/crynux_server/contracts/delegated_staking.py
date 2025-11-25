@@ -12,14 +12,14 @@ if TYPE_CHECKING:
     from crynux_server.config import TxOption
 
 
-__all__ = ["UserStakingContract"]
+__all__ = ["DelegatedStakingContract"]
 
 
-class UserStakingContract(ContractWrapper):
+class DelegatedStakingContract(ContractWrapper):
     def __init__(
         self, w3_pool: W3Pool, contract_address: Optional[ChecksumAddress] = None
     ):
-        super().__init__(w3_pool, "UserStaking", contract_address)
+        super().__init__(w3_pool, "DelegatedStaking", contract_address)
 
     async def set_min_stake_amount(
         self,
@@ -101,20 +101,6 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def slash_node(
-        self,
-        node_address: ChecksumAddress,
-        *,
-        option: "Optional[TxOption]" = None,
-        w3: Optional[AsyncWeb3] = None,
-    ):
-        return await self._transaction_call(
-            "slashNode",
-            nodeAddress=node_address,
-            option=option,
-            w3=w3,
-        )
-
     async def get_node_delegator_share(
         self,
         node_address: ChecksumAddress,
@@ -127,29 +113,34 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_user_staking_amount(
+    async def get_all_node_delegator_shares(
+        self, *, w3: Optional[AsyncWeb3] = None
+    ) -> Tuple[List[ChecksumAddress], List[int]]:
+        return await self._function_call("getAllNodeDelegatorShares", w3=w3)
+
+    async def get_delegation_staking_amount(
         self,
-        user_address: ChecksumAddress,
+        delegator_address: ChecksumAddress,
         node_address: ChecksumAddress,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> int:
         return await self._function_call(
-            "getUserStakingAmount",
-            userAddress=user_address,
+            "getDelegationStakingAmount",
+            delegatorAddress=delegator_address,
             nodeAddress=node_address,
             w3=w3,
         )
 
-    async def get_user_staking_infos(
+    async def get_delegator_staking_infos(
         self,
-        user_address: ChecksumAddress,
+        delegator_address: ChecksumAddress,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> Tuple[List[ChecksumAddress], List[int]]:
         return await self._function_call(
-            "getUserStakingInfos",
-            userAddress=user_address,
+            "getDelegatorStakingInfos",
+            delegatorAddress=delegator_address,
             w3=w3,
         )
 
@@ -165,35 +156,35 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_node_stake_amount(
+    async def get_node_total_stake_amount(
         self,
         node_address: ChecksumAddress,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> int:
         return await self._function_call(
-            "getNodeStakeAmount",
+            "getNodeTotalStakeAmount",
             nodeAddress=node_address,
             w3=w3,
         )
 
-    async def get_user_stake_amount(
+    async def get_delegator_total_stake_amount(
         self,
-        user_address: ChecksumAddress,
+        delegator_address: ChecksumAddress,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> int:
         return await self._function_call(
-            "getUserStakeAmount",
-            userAddress=user_address,
+            "getDelegatorTotalStakeAmount",
+            delegatorAddress=delegator_address,
             w3=w3,
         )
 
-    async def get_all_user_addresses(
+    async def get_all_delegator_addresses(
         self, *, w3: Optional[AsyncWeb3] = None
     ) -> List[ChecksumAddress]:
         return await self._function_call(
-            "getAllUserAddresses",
+            "getAllDelegatorAddresses",
             w3=w3,
         )
 
@@ -205,7 +196,3 @@ class UserStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_all_node_delegator_shares(
-        self, *, w3: Optional[AsyncWeb3] = None
-    ) -> Tuple[List[ChecksumAddress], List[int]]:
-        return await self._function_call("getAllNodeDelegatorShares", w3=w3)

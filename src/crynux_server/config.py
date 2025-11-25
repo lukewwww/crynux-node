@@ -133,6 +133,7 @@ class Contract(BaseModel):
     benefit_address: str
     credits: str
     node_staking: str
+    delegated_staking: str
 
 
 class Ethereum(BaseModel):

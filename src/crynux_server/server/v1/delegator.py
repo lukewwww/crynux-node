@@ -20,6 +20,6 @@ async def set_delegator_share(
     contracts: ContractsDep,
     background: BackgroundTasks,
 ):
-    waiter = await contracts.user_staking_contract.set_delegator_share(input.share)
+    waiter = await contracts.delegated_staking_contract.set_delegator_share(input.share)
     background.add_task(waiter.wait)
     return CommonResponse()

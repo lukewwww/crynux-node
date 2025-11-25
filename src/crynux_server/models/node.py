@@ -64,6 +64,8 @@ class NodeStatus(Enum):
     Error = "error"
     PendingPause = "pending_pause"
     PendingStop = "pending_stop"
+    Slashed = "slashed"
+    KickedOut = "kicked_out"
 
 
 def convert_node_status(chain_status: ChainNodeStatus) -> NodeStatus:
