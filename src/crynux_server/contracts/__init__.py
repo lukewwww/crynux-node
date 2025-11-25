@@ -12,7 +12,7 @@ from web3.types import TxParams, TxReceipt, BlockIdentifier, BlockData
 
 from crynux_server.config import TxOption
 
-from . import benefit_address, credits, node_staking
+from . import benefit_address, credits, delegated_staking, node_staking
 from .exceptions import TxRevertedError
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
@@ -39,6 +39,7 @@ class ProviderType(IntEnum):
 class Contracts(object):
     benefit_address_contract: benefit_address.BenefitAddressContract
     credits_contract: credits.CreditsContract
+    delegated_staking_contract: delegated_staking.DelegatedStakingContract
     node_staking_contract: node_staking.NodeStakingContract
 
     def __init__(
@@ -69,6 +70,7 @@ class Contracts(object):
         self,
         credits_contract_address: Optional[str] = None,
         benefit_address_contract_address: Optional[str] = None,
+        delegated_staking_contract_address: Optional[str] = None,
         node_staking_contract_address: Optional[str] = None,
         *,
         option: "Optional[TxOption]" = None,
@@ -108,6 +110,17 @@ class Contracts(object):
                     await waiter.wait(w3=w3)
                     credits_contract_address = self.credits_contract.address
 
+                if delegated_staking_contract_address is not None:
+                    self.delegated_staking_contract = delegated_staking.DelegatedStakingContract(
+                        self._w3_pool,
+                        w3.to_checksum_address(delegated_staking_contract_address)
+                    )
+                else:
+                    self.delegated_staking_contract = delegated_staking.DelegatedStakingContract(self._w3_pool)
+                    waiter = await self.delegated_staking_contract.deploy(option=option, w3=w3)
+                    await waiter.wait(w3=w3)
+                    delegated_staking_contract_address = self.delegated_staking_contract.address
+
                 if node_staking_contract_address is not None:
                     self.node_staking_contract = node_staking.NodeStakingContract(
                         self._w3_pool,
@@ -120,6 +133,7 @@ class Contracts(object):
                     waiter = await self.node_staking_contract.deploy(
                         credits_contract_address,
                         benefit_address_contract_address,
+                        delegated_staking_contract_address,
                         option=option,
                         w3=w3,
                     )
@@ -127,7 +141,11 @@ class Contracts(object):
                     node_staking_contract_address = self.node_staking_contract.address
 
                     waiter = await self.credits_contract.set_staking_address(
-                        self.node_staking_contract.address, option=option, w3=w3
+                        node_staking_contract_address, option=option, w3=w3
+                    )
+                    await waiter.wait(w3=w3)
+                    waiter = await self.delegated_staking_contract.set_node_staking_address(
+                        node_staking_contract_address, option=option, w3=w3
                     )
                     await waiter.wait(w3=w3)
 

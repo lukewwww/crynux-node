@@ -101,6 +101,11 @@ class NodeStateManager(object):
                     remote_status = node_info.status
                     local_status = models.convert_node_status(remote_status)
                     current_status = (await self.state_cache.get_node_state()).status
+                    if (
+                        current_status == models.NodeStatus.KickedOut
+                        or current_status == models.NodeStatus.Slashed
+                    ):
+                        current_status = models.NodeStatus.Stopped
                     if local_status != current_status:
                         await self.state_cache.set_node_state(local_status)
                     node_score_state = models.NodeScoreState(
@@ -123,18 +128,31 @@ class NodeStateManager(object):
         try:
             with CancelScope() as scope:
                 self._auto_stake_scope = scope
-                staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
-                current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
+                staking_info = (
+                    await self.contracts.node_staking_contract.get_staking_info(
+                        self.contracts.account
+                    )
+                )
+                current_staking_amount = (
+                    staking_info.staked_balance + staking_info.staked_credits
+                )
                 while True:
                     staking_amount = Web3.to_wei(get_staking_amount(), "ether")
                     node_status = (await self.state_cache.get_node_state()).status
                     if staking_amount != current_staking_amount:
-                        if node_status != models.NodeStatus.Stopped and node_status != models.NodeStatus.PendingStop:
+                        if node_status not in [
+                            models.NodeStatus.Stopped,
+                            models.NodeStatus.PendingStop,
+                            models.NodeStatus.Slashed,
+                            models.NodeStatus.KickedOut,
+                        ]:
                             async with self._tx_session():
                                 waiter = await self.contracts.stake(staking_amount)
                                 assert waiter is not None
                                 await waiter.wait()
-                                await self.state_cache.set_tx_state(models.TxStatus.Success)
+                                await self.state_cache.set_tx_state(
+                                    models.TxStatus.Success
+                                )
                         current_staking_amount = staking_amount
                         _logger.info(f"Staking amount updated to {staking_amount}")
                     await sleep(interval)
@@ -228,12 +246,21 @@ class NodeStateManager(object):
                     )
                     total_balance = balance + credits
 
-                    staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
-                    current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
+                    staking_info = (
+                        await self.contracts.node_staking_contract.get_staking_info(
+                            self.contracts.account
+                        )
+                    )
+                    current_staking_amount = (
+                        staking_info.staked_balance + staking_info.staked_credits
+                    )
 
-                    if total_balance + current_staking_amount < staking_amount + Web3.to_wei(0.001, "ether"):
+                    if (
+                        total_balance + current_staking_amount
+                        < staking_amount + Web3.to_wei(0.001, "ether")
+                    ):
                         raise ValueError("Node token balance is not enough to join")
-                    
+
                     waiter = await self.contracts.stake(staking_amount, option=option)
                     if waiter is not None:
                         await waiter.wait()
@@ -300,9 +327,15 @@ class NodeStateManager(object):
                 self.contracts.account
             )
             total_balance = balance + credits
-            staking_info = await self.contracts.node_staking_contract.get_staking_info(self.contracts.account)
-            current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
-            if total_balance + current_staking_amount < staking_amount + Web3.to_wei(0.001, "ether"):
+            staking_info = await self.contracts.node_staking_contract.get_staking_info(
+                self.contracts.account
+            )
+            current_staking_amount = (
+                staking_info.staked_balance + staking_info.staked_credits
+            )
+            if total_balance + current_staking_amount < staking_amount + Web3.to_wei(
+                0.001, "ether"
+            ):
                 raise ValueError("Node token balance is not enough to join")
 
             waiter = await self.contracts.stake(staking_amount, option=option)
