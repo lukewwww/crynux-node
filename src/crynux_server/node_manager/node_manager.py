@@ -5,32 +5,61 @@ import logging
 from datetime import datetime
 from typing import Optional, Type
 
-from anyio import (TASK_STATUS_IGNORED, Event, create_task_group, fail_after,
-                   get_cancelled_exc_class, move_on_after, sleep)
+from anyio import (
+    TASK_STATUS_IGNORED,
+    Event,
+    create_task_group,
+    fail_after,
+    get_cancelled_exc_class,
+    move_on_after,
+    sleep,
+)
 from anyio.abc import TaskGroup, TaskStatus
-from tenacity import (AsyncRetrying, before_sleep_log, stop_after_attempt,
-                      stop_never, wait_fixed)
+from tenacity import (
+    AsyncRetrying,
+    before_sleep_log,
+    stop_after_attempt,
+    stop_never,
+    wait_fixed,
+)
 from web3 import Web3
 
 from crynux_server import models
 from crynux_server.config import Config, wait_privkey, get_staking_amount
 from crynux_server.contracts import Contracts, set_contracts
 from crynux_server.relay import Relay, WebRelay, set_relay
-from crynux_server.task import (DbDownloadTaskStateCache,
-                                DbInferenceTaskStateCache,
-                                DownloadTaskStateCache,
-                                InferenceTaskStateCache, TaskSystem,
-                                set_download_task_state_cache,
-                                set_inference_task_state_cache,
-                                set_task_system)
+from crynux_server.task import (
+    DbDownloadTaskStateCache,
+    DbInferenceTaskStateCache,
+    DownloadTaskStateCache,
+    InferenceTaskStateCache,
+    TaskSystem,
+    set_download_task_state_cache,
+    set_inference_task_state_cache,
+    set_task_system,
+)
 from crynux_server.watcher import EventWatcher, set_watcher
-from crynux_server.worker_manager import (TaskCancelled, TaskDownloadError,
-                                          TaskError, WorkerManager,
-                                          get_worker_manager)
-from crynux_server.download_model_cache import DownloadModelCache, DbDownloadModelCache, set_download_model_cache
+from crynux_server.worker_manager import (
+    TaskCancelled,
+    TaskDownloadError,
+    TaskError,
+    WorkerManager,
+    get_worker_manager,
+)
+from crynux_server.download_model_cache import (
+    DownloadModelCache,
+    DbDownloadModelCache,
+    set_download_model_cache,
+)
 
-from .state_cache import (DbNodeStateCache, DbTxStateCache, ManagerStateCache,
-                          StateCache, set_manager_state_cache, DbNodeScoreStateCache)
+from .state_cache import (
+    DbNodeStateCache,
+    DbTxStateCache,
+    ManagerStateCache,
+    StateCache,
+    set_manager_state_cache,
+    DbNodeScoreStateCache,
+)
 from .state_manager import NodeStateManager, set_node_state_manager
 
 _logger = logging.getLogger(__name__)
@@ -46,7 +75,9 @@ async def _make_contracts(
     delegated_staking_contract_address: Optional[str],
     node_staking_contract_address: Optional[str],
 ) -> Contracts:
-    contracts = Contracts(provider_path=provider, privkey=privkey, timeout=timeout, rps=rps)
+    contracts = Contracts(
+        provider_path=provider, privkey=privkey, timeout=timeout, rps=rps
+    )
     await contracts.init(
         benefit_address_contract_address=benefit_address_contract_address,
         credits_contract_address=credits_contract_address,
@@ -114,6 +145,7 @@ def _make_node_state_manager(
     set_node_state_manager(state_manager)
     return state_manager
 
+
 # Manage node, including:
 # 1. node start up/shut down, joining into the network
 # 2. node status changes/management
@@ -126,11 +158,17 @@ class NodeManager(object):
         platform: str,
         gpu_name: str,
         gpu_vram: int,
-        inference_state_cache_cls: Type[InferenceTaskStateCache] = DbInferenceTaskStateCache,
-        download_state_cache_cls: Type[DownloadTaskStateCache] = DbDownloadTaskStateCache,
+        inference_state_cache_cls: Type[
+            InferenceTaskStateCache
+        ] = DbInferenceTaskStateCache,
+        download_state_cache_cls: Type[
+            DownloadTaskStateCache
+        ] = DbDownloadTaskStateCache,
         node_state_cache_cls: Type[StateCache[models.NodeState]] = DbNodeStateCache,
         tx_state_cache_cls: Type[StateCache[models.TxState]] = DbTxStateCache,
-        node_score_state_cache_cls: Type[StateCache[models.NodeScoreState]] = DbNodeScoreStateCache,
+        node_score_state_cache_cls: Type[
+            StateCache[models.NodeScoreState]
+        ] = DbNodeScoreStateCache,
         download_model_cache_cls: Type[DownloadModelCache] = DbDownloadModelCache,
         manager_state_cache: Optional[ManagerStateCache] = None,
         privkey: Optional[str] = None,
@@ -213,7 +251,7 @@ class NodeManager(object):
                 contracts=self._contracts,
                 relay=self._relay,
                 inference_state_cache_cls=self.inference_state_cache_cls,
-                download_state_cache_cls=self.download_state_cache_cls
+                download_state_cache_cls=self.download_state_cache_cls,
             )
 
         if self._node_state_manager is None:
@@ -298,8 +336,7 @@ class NodeManager(object):
                 await task_fut.get()
                 await self.download_model_cache.save(
                     models.DownloadedModel(
-                        task_type=task_input.task.task_type,
-                        model=task_input.task.model
+                        task_type=task_input.task.task_type, model=task_input.task.model
                     )
                 )
             except TaskCancelled:
@@ -410,7 +447,7 @@ class NodeManager(object):
                             message="Node manager running error: cannot sync node state from chain, retrying...",
                         )
                     raise
-    
+
     async def _auto_stake(self):
         assert self._node_state_manager is not None
 
@@ -450,7 +487,7 @@ class NodeManager(object):
             if address == account:
                 _logger.info("Node is kicked out")
                 await self.state_cache.set_node_state(
-                    status=models.NodeStatus.Stopped, message="Node is kicked out"
+                    status=models.NodeStatus.KickedOut, message="Node is kicked out"
                 )
 
         self._watcher.add_event_filter("NodeKickedOut", callback=_node_kicked_out)
@@ -461,7 +498,7 @@ class NodeManager(object):
             if address == account:
                 _logger.info("Node is slashed")
                 await self.state_cache.set_node_state(
-                    status=models.NodeStatus.Stopped, message="Node is slashed"
+                    status=models.NodeStatus.Slashed, message="Node is slashed"
                 )
 
         self._watcher.add_event_filter("NodeSlashed", callback=_node_slashed)
@@ -558,8 +595,14 @@ class NodeManager(object):
                     credits = await self._contracts.credits_contract.get_credits(
                         self._contracts.account
                     )
-                    staking_info = await self._contracts.node_staking_contract.get_staking_info(self._contracts.account)
-                    current_staking_amount = staking_info.staked_balance + staking_info.staked_credits
+                    staking_info = (
+                        await self._contracts.node_staking_contract.get_staking_info(
+                            self._contracts.account
+                        )
+                    )
+                    current_staking_amount = (
+                        staking_info.staked_balance + staking_info.staked_credits
+                    )
                     total_balance = balance + credits
                     if total_balance + current_staking_amount >= node_amount:
                         return True
