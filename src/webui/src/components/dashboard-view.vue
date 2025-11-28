@@ -230,7 +230,9 @@ const shortAddress = computed(() => {
 const isNodeJoined = computed(() => {
     return [
         nodeAPI.NODE_STATUS_RUNNING,
-        nodeAPI.NODE_STATUS_PAUSED
+        nodeAPI.NODE_STATUS_PAUSED,
+        nodeAPI.NODE_STATUS_PENDING_PAUSE,
+        nodeAPI.NODE_STATUS_PENDING_STOP
     ].includes(nodeStatus.status)
 })
 
