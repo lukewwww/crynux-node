@@ -108,6 +108,7 @@ const topRow = ref(null)
 const alertsRow = ref(null)
 const cardsRow1 = ref(null)
 const cardsRow2 = ref(null)
+const cardsRowDelegators = ref(null)
 
 const systemInfo = reactive({
     gpu: {
@@ -298,9 +299,17 @@ const windowResized = () => {
     const alertsRowHeight = alertsRow.value.$el.offsetHeight;
     const cardsRow1Height = cardsRow1.value.$el.offsetHeight;
     const cardsRow2Height = cardsRow2.value.$el.offsetHeight;
+    const cardsRowDelegatorsHeight = cardsRowDelegators.value ? cardsRowDelegators.value.$el.offsetHeight : 0;
 
-    // There is a 16px margin-top on the second row of cards.
-    const mainContentHeight = topRowHeight + alertsRowHeight + cardsRow1Height + 16 + cardsRow2Height;
+    // There is a 16px margin-top before the delegators row (when visible) and before the second row of cards.
+    const mainContentHeight =
+        topRowHeight +
+        alertsRowHeight +
+        cardsRow1Height +
+        16 +
+        cardsRowDelegatorsHeight +
+        (cardsRowDelegatorsHeight > 0 ? 16 : 0) +
+        cardsRow2Height;
 
     const bottomBarHeight = bottomBar.offsetHeight;
     // There is a 68px margin-top on the bottom bar when it is not fixed.
@@ -334,6 +343,30 @@ const accountStaked = computed(() => {
         return '0'
     } else {
         return toEtherValue(accountStatus.staking)
+    }
+})
+
+const delegatorEarningsToday = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.today_delegator_earnings)
+    }
+})
+
+const delegatorEarningsTotal = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.total_delegator_earnings)
+    }
+})
+
+const delegatorStaked = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.delegator_staking)
     }
 })
 
@@ -1102,6 +1135,79 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-card>
         </a-col>
     </a-row>
+    <a-row
+        ref="cardsRowDelegators"
+        v-if="accountStatus.delegator_share !== 0"
+        :gutter="[16, 16]"
+        style="margin-top: 16px"
+    >
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 12 }"
+            :md="{ span: 12 }"
+            :lg="{ span: 10 }"
+            :xl="{ span: 8, offset: 1 }"
+            :xxl="{ span: 8, offset: 3 }"
+        >
+            <a-card title="Delegator Rewards" :bordered="false" style="height: 100%; opacity: 0.9">
+                <a-row>
+                    <a-col :span="12">
+                        <a-statistic title="CNX Today" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorEarningsToday }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-statistic title="CNX Total" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorEarningsTotal }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 12 }"
+            :md="{ span: 12 }"
+            :lg="{ span: 14 }"
+            :xl="{ span: 14 }"
+            :xxl="{ span: 10 }"
+        >
+            <a-card title="Delegators" :bordered="false" style="height: 100%; opacity: 0.9">
+                <a-row>
+                    <a-col :span="8">
+                        <a-statistic title="Delegator Share" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountStatus.delegator_share }}%</a-typography-text>
+                                <a-button @click="systemStore.showSettingsModal = true" style="margin-left: 8px">
+                                    <template #icon>
+                                        <EditOutlined />
+                                    </template>
+                                </a-button>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="Delegators" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountStatus.delegator_num }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="CNX Staked" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorStaked }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+    </a-row>
     <a-row ref="cardsRow2" :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
             :xs="{ span: 24, offset: 0 }"
@@ -1276,7 +1382,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                     <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                    <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                    <a-typography-link href="https://portal.crynux.io" target="_blank">Portal</a-typography-link>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                     <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
@@ -1338,8 +1444,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             >Discord
                             </a-typography-link>
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
-                            >Netstats
+                            <a-typography-link href="https://portal.crynux.io" target="_blank"
+                            >Portal
                             </a-typography-link>
                         </a-space>
                     </a-space>
@@ -1388,7 +1494,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                             <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                            <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                            <a-typography-link href="https://portal.crynux.io" target="_blank">Portal</a-typography-link>
                         </a-space>
                     </a-space>
                 </div>
