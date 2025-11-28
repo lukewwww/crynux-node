@@ -38,6 +38,60 @@ const isStakingAmountValid = computed(() => {
     return settingsInModal.staking_amount >= config.min_staking_amount
 })
 
+// Whether each field changed in Settings modal
+const isStakingChanged = computed(() => settingsInModal.staking_amount !== settings.staking_amount)
+const isDelegatorShareChanged = computed(() => settingsInModal.delegator_share !== accountStatus.delegator_share)
+
+// Compute dynamic gas and staking requirements for saving settings
+const stakingAmountDesiredWei = computed(() => {
+    if (typeof settingsInModal.staking_amount !== 'number') return 0n
+    try {
+        return BigInt(settingsInModal.staking_amount) * 1000000000000000000n
+    } catch (e) {
+        return 0n
+    }
+})
+
+// Whether saving staking now will deduct tokens from wallet:
+// only when node is running or paused, and staking amount is changed.
+const stakeDeductsNow = computed(() => isStakingChanged.value && isNodeJoined.value)
+
+// Additional stake that must come from wallet if target is higher than currently staked
+const additionalStakeRequiredWei = computed(() => {
+    const desired = stakingAmountDesiredWei.value
+    const currentStaked = accountStatus.staking || 0n
+    if (!stakeDeductsNow.value) return 0n
+    const delta = desired - currentStaked
+    return delta > 0n ? delta : 0n
+})
+
+// Gas requirement: use a single minimal safe gas threshold constant
+const requiredTotalWeiForSave = computed(() => GAS_FEE_MIN_WEI + additionalStakeRequiredWei.value)
+const hasEnoughForSave = computed(() => {
+    if (!accountStatus.address) return false
+    return (accountStatus.balance || 0n) >= requiredTotalWeiForSave.value
+})
+
+const hasEnoughGas = computed(() => {
+    if (!accountStatus.address) return false
+    // Consider that additional staking (if any) also consumes wallet balance, leaving gas insufficient.
+    return (accountStatus.balance || 0n) >= (GAS_FEE_MIN_WEI + additionalStakeRequiredWei.value)
+})
+
+// Save disabled rule: no changes OR invalid staking OR insufficient funds for gas/staking
+const isSettingsSaveDisabled = computed(() => {
+    const changed = isStakingChanged.value || isDelegatorShareChanged.value
+    if (!changed) return true
+    if (!isStakingAmountValid.value) return true
+    if (!hasEnoughForSave.value) return true
+    return false
+})
+
+const settingsInsufficientText = computed(() => {
+    if (hasEnoughGas.value) return ''
+    return 'Not enough tokens to cover gas fee.'
+})
+
 const appVersion = APP_VERSION
 
 const accountAPI = new AccountAPI()
@@ -92,7 +146,12 @@ const accountStatus = reactive({
     address: '',
     balance: 0,
     staking: 0,
-    relay_balance: 0
+    relay_balance: 0,
+    delegator_staking: 0,
+    delegator_share: 0,
+    delegator_num: 0,
+    today_delegator_earnings: 0,
+    total_delegator_earnings: 0
 })
 
 const taskStatus = reactive({
@@ -107,7 +166,8 @@ const settings = reactive({
 })
 
 const settingsInModal = reactive({
-    staking_amount: config.min_staking_amount
+    staking_amount: config.min_staking_amount,
+    delegator_share: 0
 })
 
 
@@ -169,9 +229,7 @@ const shortAddress = computed(() => {
 const isNodeJoined = computed(() => {
     return [
         nodeAPI.NODE_STATUS_RUNNING,
-        nodeAPI.NODE_STATUS_PAUSED,
-        nodeAPI.NODE_STATUS_PENDING_PAUSE,
-        nodeAPI.NODE_STATUS_PENDING_STOP
+        nodeAPI.NODE_STATUS_PAUSED
     ].includes(nodeStatus.status)
 })
 
@@ -302,6 +360,8 @@ onMounted(async () => {
 watch(() => systemStore.showSettingsModal, (newValue) => {
     if (newValue) {
         Object.assign(settingsInModal, settings)
+        // Delegator share comes from account info, not settings API.
+        settingsInModal.delegator_share = accountStatus.delegator_share
         showSuccessAlert.value = false
     }
 })
@@ -312,12 +372,33 @@ onBeforeUnmount(() => {
 })
 
 const handleSettingsSave = async () => {
+    // Only send API requests for fields that actually changed; otherwise close the dialog.
+    const changedStaking = settingsInModal.staking_amount !== settings.staking_amount
+    const changedDelegatorShare = settingsInModal.delegator_share !== accountStatus.delegator_share
+
+    if (!changedStaking && !changedDelegatorShare) {
+        systemStore.showSettingsModal = false
+        return
+    }
+
     isSaving.value = true;
     try {
         logger.info('Save settings', settingsInModal)
-        await settingsAPI.updateSettings(settingsInModal)
-        apiContinuousErrorCount['settings'] = 0
-        Object.assign(settings, settingsInModal)
+
+        // Update staking amount if changed
+        if (changedStaking) {
+            await settingsAPI.updateSettings({ staking_amount: settingsInModal.staking_amount })
+            apiContinuousErrorCount['settings'] = 0
+            settings.staking_amount = settingsInModal.staking_amount
+        }
+
+        // Update delegator share if changed
+        if (changedDelegatorShare) {
+            await accountAPI.updateDelegatorShare(settingsInModal.delegator_share)
+            apiContinuousErrorCount['account'] = 0
+            accountStatus.delegator_share = settingsInModal.delegator_share
+        }
+
         showSuccessAlert.value = true
         setTimeout(() => {
             showSuccessAlert.value = false
@@ -430,7 +511,12 @@ const updateAccountInfo = async (ticket) => {
             address: accountResp.address || '',
             balance: BigInt(accountResp.balance ?? 0),
             staking: BigInt(accountResp.staking ?? 0),
-            relay_balance: BigInt(accountResp.relay_balance ?? 0)
+            relay_balance: BigInt(accountResp.relay_balance ?? 0),
+            delegator_staking: BigInt(accountResp.delegator_staking ?? 0),
+            delegator_share: parseInt(accountResp.delegator_share ?? 0),
+            delegator_num: parseInt(accountResp.delegator_num ?? 0),
+            today_delegator_earnings: BigInt(accountResp.today_delegator_earnings ?? 0),
+            total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0)
         }
         Object.assign(accountStatus, normalized)
     } else {
@@ -1414,7 +1500,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
         :mask-closable="false"
         ok-text="Save"
         :confirm-loading="isSaving"
-        :ok-button-props="{ disabled: !isStakingAmountValid }"
+        :ok-button-props="{ disabled: isSettingsSaveDisabled }"
         @ok="handleSettingsSave"
         @cancel="handleSettingsCancel"
     >
@@ -1425,6 +1511,13 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             show-icon
             style="margin-bottom: 24px;"
         />
+        <a-alert
+            v-if="!hasEnoughGas && (isStakingChanged || isDelegatorShareChanged)"
+            :message="settingsInsufficientText"
+            type="error"
+            show-icon
+            style="margin-bottom: 16px;"
+        />
         <a-form layout="vertical">
             <a-form-item
                 label="Staking Amount"
@@ -1432,6 +1525,37 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 :help="isStakingAmountValid ? `Minimum staking amount is ${config.min_staking_amount} CNX.` : `Staking amount must be an integer and cannot be less than ${config.min_staking_amount}.`"
             >
                 <a-input-number v-model:value="settingsInModal.staking_amount" prefix="CNX" style="width: 100%"/>
+            </a-form-item>
+            <a-form-item>
+                <template #label>
+                    Delegator Share
+                    <a-tooltip placement="right">
+                        <template #title>
+                            <div style="max-width: 420px">
+                                <ul style="padding-left: 16px; margin: 0;">
+                                    <li>Allocate a portion of rewards to Delegators to attract more staking.</li>
+                                    <li>With a non-zero Delegator Share, your node appears in the Portal's Stakeable Nodes list and users can stake to your node.</li>
+                                    <li>A higher staking score leads to more tasks and more rewards.</li>
+                                </ul>
+                            </div>
+                        </template>
+                        <QuestionCircleOutlined style="margin-left: 6px; color: rgba(0, 0, 0, 0.45)" />
+                    </a-tooltip>
+                </template>
+                <a-row>
+                    <a-col :span="20">
+                        <a-slider
+                            v-model:value="settingsInModal.delegator_share"
+                            :min="0"
+                            :max="100"
+                            :step="1"
+                            :tooltip-formatter="value => `${value}%`"
+                        />
+                    </a-col>
+                    <a-col :span="4" style="text-align: right;">
+                        <a-typography-text>{{ settingsInModal.delegator_share }}%</a-typography-text>
+                    </a-col>
+                </a-row>
             </a-form-item>
         </a-form>
     </a-modal>
