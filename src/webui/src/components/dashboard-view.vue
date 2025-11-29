@@ -227,13 +227,20 @@ const shortAddress = computed(() => {
     }
 })
 
+// Node status helpers
+const isNodeInitializing = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING)
+const isNodeRunning = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING)
+const isNodePaused = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED)
+const isNodeError = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_ERROR)
+const isNodePendingPause = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_PAUSE)
+const isNodePendingStop = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_STOP)
+const isNodeStoppedLike = computed(() =>
+    [nodeAPI.NODE_STATUS_STOPPED, nodeAPI.NODE_STATUS_SLASHED, nodeAPI.NODE_STATUS_KICKED_OUT].includes(nodeStatus.status)
+)
+const isNodePending = computed(() => isNodePendingPause.value || isNodePendingStop.value)
+
 const isNodeJoined = computed(() => {
-    return [
-        nodeAPI.NODE_STATUS_RUNNING,
-        nodeAPI.NODE_STATUS_PAUSED,
-        nodeAPI.NODE_STATUS_PENDING_PAUSE,
-        nodeAPI.NODE_STATUS_PENDING_STOP
-    ].includes(nodeStatus.status)
+    return isNodeRunning.value || isNodePaused.value || isNodePending.value
 })
 
 const GAS_FEE_MIN_WEI = BigInt(config.gas_fee_min_wei)
@@ -760,12 +767,36 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             ></a-alert>
             <a-alert
                 type="error"
+                message="Node was slashed"
+                class="top-alert"
+                v-if="nodeStatus.status === nodeAPI.NODE_STATUS_SLASHED"
+            >
+                <template #action>
+                    <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord</a-button>
+                </template>
+                <template #description>
+                    <div>Your staked tokens have been temporarily moved to the DAO Treasury.</div>
+                    <div>A very small number of honest nodes may be slashed due to current technical limitations; a fix is in progress.</div>
+                    <div>The council has already been notified. If you have not engaged in malicious activity, your tokens will be returned within 1–2 days. No action is required on your side.</div>
+                    <div>Join our Discord to track progress:
+                        <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}</a-typography-link>
+                    </div>
+                </template>
+            </a-alert>
+            <a-alert
+                type="error"
+                message="Node is kicked out"
+                class="top-alert"
+                v-if="nodeStatus.status === nodeAPI.NODE_STATUS_KICKED_OUT"
+            ></a-alert>
+            <a-alert
+                type="error"
                 :message="`Not enough tokens in the node wallet. Requires ${requiredStartTotalCNXAlert} CNX in total.`"
                 class="top-alert"
                 v-if="
-          (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) &&
+          ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
-          !startEnough()
+          !startEnough())
         "
             >
                 <template #action>
@@ -783,7 +814,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 :message="`Not enough tokens in the node wallet for gas. Requires at least ${gasFeeMinCNXAlert} CNX.`"
                 class="top-alert"
                 v-if="
-          [nodeAPI.NODE_STATUS_RUNNING, nodeAPI.NODE_STATUS_PAUSED].includes(nodeStatus.status) &&
+          (isNodeRunning || isNodePaused) &&
           accountStatus.address !== '' &&
           !gasEnough()
         "
@@ -806,14 +837,14 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             type="circle"
                             :size="70"
                             :percent="100"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING"
+                            v-if="isNodeRunning"
                         />
                         <a-progress
                             type="circle"
                             :size="70"
                             :percent="100"
                             status="exception"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_ERROR"
+                            v-if="isNodeError"
                         >
                         </a-progress>
                         <a-progress
@@ -821,21 +852,15 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :size="70"
                             :percent="100"
                             :stroke-color="'lightgray'"
-                            v-if="
-                [
-                  nodeAPI.NODE_STATUS_PAUSED,
-                  nodeAPI.NODE_STATUS_STOPPED,
-                  nodeAPI.NODE_STATUS_PENDING
-                ].indexOf(nodeStatus.status) !== -1
-              "
+                            v-if="(isNodePaused || isNodeStoppedLike)"
                         >
                             <template #format>
                 <span style="font-size: 14px; color: lightgray">
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING"
+                  <span v-if="isNodeInitializing"
                   >Preparing</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED">Paused</span>
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">Stopped</span>
+                  <span v-if="isNodePaused">Paused</span>
+                  <span v-if="isNodeStoppedLike">Stopped</span>
                 </span>
                             </template>
                         </a-progress>
@@ -844,23 +869,17 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :size="70"
                             :percent="100"
                             :stroke-color="'cornflowerblue'"
-                            v-if="
-                [
-                  nodeAPI.NODE_STATUS_PENDING_PAUSE,
-                  nodeAPI.NODE_STATUS_PENDING_STOP,
-                  nodeAPI.NODE_STATUS_INITIALIZING
-                ].indexOf(nodeStatus.status) !== -1
-              "
+                            v-if="(isNodePendingPause || isNodePendingStop || isNodeInitializing)"
                         >
                             <template #format>
                 <span style="font-size: 14px; color: cornflowerblue">
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_PAUSE"
+                  <span v-if="isNodePendingPause"
                   >Pausing</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_STOP"
+                  <span v-if="isNodePendingStop"
                   >Stopping</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING"
+                  <span v-if="isNodeInitializing"
                   >Preparing</span
                   >
                 </span>
@@ -868,7 +887,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                         </a-progress>
                     </a-col>
                     <a-col :span="12">
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING">
+                        <div class="node-op-btn" v-if="isNodeRunning">
                             <a-button
                                 :icon="h(PauseCircleOutlined)"
                                 @click="sendNodeAction('pause')"
@@ -881,7 +900,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                         <div
                             class="node-op-btn"
                             style="margin-top: 8px"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING"
+                            v-if="isNodeRunning"
                         >
                             <a-button
                                 :icon="h(LogoutOutlined)"
@@ -892,7 +911,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div class="node-op-btn" v-if="isNodeStoppedLike">
                             <a-button
                                 type="primary"
                                 :icon="h(PlayCircleOutlined)"
@@ -903,7 +922,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="isNodeStoppedLike">
                             <a-typography-text type="secondary">
                                 Staking: {{ settings.staking_amount }} CNX
                             </a-typography-text>
@@ -914,7 +933,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 @click="systemStore.showSettingsModal = true"
                             />
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED">
+                        <div class="node-op-btn" v-if="isNodePaused">
                             <a-button
                                 type="primary"
                                 :icon="h(PlayCircleOutlined)"
@@ -925,7 +944,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING">
+                        <div class="node-op-btn" v-if="isNodeInitializing">
                             <a-button type="primary" :icon="h(PlayCircleOutlined)" disabled>Start</a-button>
                         </div>
                     </a-col>
