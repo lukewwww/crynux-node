@@ -11,6 +11,8 @@ class NodeAPI extends BaseAPI {
     this.NODE_STATUS_RUNNING = 'running'
     this.NODE_STATUS_PAUSED = 'paused'
     this.NODE_STATUS_STOPPED = 'stopped'
+    this.NODE_STATUS_SLASHED = 'slashed'
+    this.NODE_STATUS_KICKED_OUT = 'kicked_out'
     this.NODE_STATUS_ERROR = 'error'
     this.NODE_STATUS_PENDING_PAUSE = 'pending_pause'
     this.NODE_STATUS_PENDING_STOP = 'pending_stop'

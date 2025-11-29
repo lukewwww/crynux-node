@@ -31,6 +31,10 @@ class AccountAPI extends BaseAPI {
     createAccount() {
         return this.getHttpClient().post('/account', {})
     }
+
+    updateDelegatorShare(share) {
+        return this.getHttpClient().post('/delegator/share', { share: share })
+    }
 }
 
 export default AccountAPI

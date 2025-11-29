@@ -38,6 +38,60 @@ const isStakingAmountValid = computed(() => {
     return settingsInModal.staking_amount >= config.min_staking_amount
 })
 
+// Whether each field changed in Settings modal
+const isStakingChanged = computed(() => settingsInModal.staking_amount !== settings.staking_amount)
+const isDelegatorShareChanged = computed(() => settingsInModal.delegator_share !== accountStatus.delegator_share)
+
+// Compute dynamic gas and staking requirements for saving settings
+const stakingAmountDesiredWei = computed(() => {
+    if (typeof settingsInModal.staking_amount !== 'number') return 0n
+    try {
+        return BigInt(settingsInModal.staking_amount) * 1000000000000000000n
+    } catch (e) {
+        return 0n
+    }
+})
+
+// Whether saving staking now will deduct tokens from wallet:
+// only when node is running or paused, and staking amount is changed.
+const stakeDeductsNow = computed(() => isStakingChanged.value && isNodeJoined.value)
+
+// Additional stake that must come from wallet if target is higher than currently staked
+const additionalStakeRequiredWei = computed(() => {
+    const desired = stakingAmountDesiredWei.value
+    const currentStaked = accountStatus.staking || 0n
+    if (!stakeDeductsNow.value) return 0n
+    const delta = desired - currentStaked
+    return delta > 0n ? delta : 0n
+})
+
+// Gas requirement: use a single minimal safe gas threshold constant
+const requiredTotalWeiForSave = computed(() => GAS_FEE_MIN_WEI + additionalStakeRequiredWei.value)
+const hasEnoughForSave = computed(() => {
+    if (!accountStatus.address) return false
+    return (accountStatus.balance || 0n) >= requiredTotalWeiForSave.value
+})
+
+const hasEnoughGas = computed(() => {
+    if (!accountStatus.address) return false
+    // Consider that additional staking (if any) also consumes wallet balance, leaving gas insufficient.
+    return (accountStatus.balance || 0n) >= (GAS_FEE_MIN_WEI + additionalStakeRequiredWei.value)
+})
+
+// Save disabled rule: no changes OR invalid staking OR insufficient funds for gas/staking
+const isSettingsSaveDisabled = computed(() => {
+    const changed = isStakingChanged.value || isDelegatorShareChanged.value
+    if (!changed) return true
+    if (!isStakingAmountValid.value) return true
+    if (!hasEnoughForSave.value) return true
+    return false
+})
+
+const settingsInsufficientText = computed(() => {
+    if (hasEnoughGas.value) return ''
+    return 'Not enough tokens to cover gas fee.'
+})
+
 const appVersion = APP_VERSION
 
 const accountAPI = new AccountAPI()
@@ -54,6 +108,7 @@ const topRow = ref(null)
 const alertsRow = ref(null)
 const cardsRow1 = ref(null)
 const cardsRow2 = ref(null)
+const cardsRowDelegators = ref(null)
 
 const systemInfo = reactive({
     gpu: {
@@ -92,7 +147,12 @@ const accountStatus = reactive({
     address: '',
     balance: 0,
     staking: 0,
-    relay_balance: 0
+    relay_balance: 0,
+    delegator_staking: 0,
+    delegator_share: 0,
+    delegator_num: 0,
+    today_delegator_earnings: 0,
+    total_delegator_earnings: 0
 })
 
 const taskStatus = reactive({
@@ -107,7 +167,8 @@ const settings = reactive({
 })
 
 const settingsInModal = reactive({
-    staking_amount: config.min_staking_amount
+    staking_amount: config.min_staking_amount,
+    delegator_share: 0
 })
 
 
@@ -166,13 +227,20 @@ const shortAddress = computed(() => {
     }
 })
 
+// Node status helpers
+const isNodeInitializing = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING)
+const isNodeRunning = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING)
+const isNodePaused = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED)
+const isNodeError = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_ERROR)
+const isNodePendingPause = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_PAUSE)
+const isNodePendingStop = computed(() => nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_STOP)
+const isNodeStoppedLike = computed(() =>
+    [nodeAPI.NODE_STATUS_STOPPED, nodeAPI.NODE_STATUS_SLASHED, nodeAPI.NODE_STATUS_KICKED_OUT].includes(nodeStatus.status)
+)
+const isNodePending = computed(() => isNodePendingPause.value || isNodePendingStop.value)
+
 const isNodeJoined = computed(() => {
-    return [
-        nodeAPI.NODE_STATUS_RUNNING,
-        nodeAPI.NODE_STATUS_PAUSED,
-        nodeAPI.NODE_STATUS_PENDING_PAUSE,
-        nodeAPI.NODE_STATUS_PENDING_STOP
-    ].includes(nodeStatus.status)
+    return isNodeRunning.value || isNodePaused.value || isNodePending.value
 })
 
 const GAS_FEE_MIN_WEI = BigInt(config.gas_fee_min_wei)
@@ -240,9 +308,17 @@ const windowResized = () => {
     const alertsRowHeight = alertsRow.value.$el.offsetHeight;
     const cardsRow1Height = cardsRow1.value.$el.offsetHeight;
     const cardsRow2Height = cardsRow2.value.$el.offsetHeight;
+    const cardsRowDelegatorsHeight = cardsRowDelegators.value ? cardsRowDelegators.value.$el.offsetHeight : 0;
 
-    // There is a 16px margin-top on the second row of cards.
-    const mainContentHeight = topRowHeight + alertsRowHeight + cardsRow1Height + 16 + cardsRow2Height;
+    // There is a 16px margin-top before the delegators row (when visible) and before the second row of cards.
+    const mainContentHeight =
+        topRowHeight +
+        alertsRowHeight +
+        cardsRow1Height +
+        16 +
+        cardsRowDelegatorsHeight +
+        (cardsRowDelegatorsHeight > 0 ? 16 : 0) +
+        cardsRow2Height;
 
     const bottomBarHeight = bottomBar.offsetHeight;
     // There is a 68px margin-top on the bottom bar when it is not fixed.
@@ -279,6 +355,30 @@ const accountStaked = computed(() => {
     }
 })
 
+const delegatorEarningsToday = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.today_delegator_earnings)
+    }
+})
+
+const delegatorEarningsTotal = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.total_delegator_earnings)
+    }
+})
+
+const delegatorStaked = computed(() => {
+    if (accountStatus.address === '') {
+        return '0'
+    } else {
+        return toEtherValue(accountStatus.delegator_staking)
+    }
+})
+
 let uiUpdateInterval = null
 let uiUpdateCurrentTicket = null
 onMounted(async () => {
@@ -302,6 +402,8 @@ onMounted(async () => {
 watch(() => systemStore.showSettingsModal, (newValue) => {
     if (newValue) {
         Object.assign(settingsInModal, settings)
+        // Delegator share comes from account info, not settings API.
+        settingsInModal.delegator_share = accountStatus.delegator_share
         showSuccessAlert.value = false
     }
 })
@@ -312,12 +414,33 @@ onBeforeUnmount(() => {
 })
 
 const handleSettingsSave = async () => {
+    // Only send API requests for fields that actually changed; otherwise close the dialog.
+    const changedStaking = settingsInModal.staking_amount !== settings.staking_amount
+    const changedDelegatorShare = settingsInModal.delegator_share !== accountStatus.delegator_share
+
+    if (!changedStaking && !changedDelegatorShare) {
+        systemStore.showSettingsModal = false
+        return
+    }
+
     isSaving.value = true;
     try {
         logger.info('Save settings', settingsInModal)
-        await settingsAPI.updateSettings(settingsInModal)
-        apiContinuousErrorCount['settings'] = 0
-        Object.assign(settings, settingsInModal)
+
+        // Update staking amount if changed
+        if (changedStaking) {
+            await settingsAPI.updateSettings({ staking_amount: settingsInModal.staking_amount })
+            apiContinuousErrorCount['settings'] = 0
+            settings.staking_amount = settingsInModal.staking_amount
+        }
+
+        // Update delegator share if changed
+        if (changedDelegatorShare) {
+            await accountAPI.updateDelegatorShare(settingsInModal.delegator_share)
+            apiContinuousErrorCount['account'] = 0
+            accountStatus.delegator_share = settingsInModal.delegator_share
+        }
+
         showSuccessAlert.value = true
         setTimeout(() => {
             showSuccessAlert.value = false
@@ -430,7 +553,12 @@ const updateAccountInfo = async (ticket) => {
             address: accountResp.address || '',
             balance: BigInt(accountResp.balance ?? 0),
             staking: BigInt(accountResp.staking ?? 0),
-            relay_balance: BigInt(accountResp.relay_balance ?? 0)
+            relay_balance: BigInt(accountResp.relay_balance ?? 0),
+            delegator_staking: BigInt(accountResp.delegator_staking ?? 0),
+            delegator_share: parseInt(accountResp.delegator_share ?? 0),
+            delegator_num: parseInt(accountResp.delegator_num ?? 0),
+            today_delegator_earnings: BigInt(accountResp.today_delegator_earnings ?? 0),
+            total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0)
         }
         Object.assign(accountStatus, normalized)
     } else {
@@ -639,12 +767,44 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             ></a-alert>
             <a-alert
                 type="error"
+                message="Node was slashed"
+                class="top-alert"
+                v-if="nodeStatus.status === nodeAPI.NODE_STATUS_SLASHED"
+            >
+                <template #action>
+                    <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord</a-button>
+                </template>
+                <template #description>
+                    <div>Your staked tokens have been temporarily moved to the DAO Treasury.</div>
+                    <div>A very small number of honest nodes may be slashed due to current technical limitations; a fix is in progress.</div>
+                    <div>The council has already been notified. If you have not engaged in malicious activity, your tokens will be returned within 1–2 days. No action is required on your side.</div>
+                    <div>Join our Discord to track progress:
+                        <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}</a-typography-link>
+                    </div>
+                </template>
+            </a-alert>
+            <a-alert
+                type="error"
+                message="Node was kicked out"
+                class="top-alert"
+                v-if="nodeStatus.status === nodeAPI.NODE_STATUS_KICKED_OUT"
+            >
+                <template #description>
+                    <div>Your node was forced to stop because its Quality of Service (QoS) score fell below the required threshold.</div>
+                    <div>A low QoS score is typically caused by slow task submission, which can happen with a slow or unstable network connection, limited VRAM, or lower GPU frequency.</div>
+                    <div>Please review and improve your hardware and network setup, then rejoin the network after the performance issues are resolved. For more details, see the QoS documentation:
+                        <a-typography-link href="https://docs.crynux.io/system-design/quality-of-service-qos" target="_blank">QoS Scores</a-typography-link>
+                    </div>
+                </template>
+            </a-alert>
+            <a-alert
+                type="error"
                 :message="`Not enough tokens in the node wallet. Requires ${requiredStartTotalCNXAlert} CNX in total.`"
                 class="top-alert"
                 v-if="
-          (nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED || nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING) &&
+          ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
-          !startEnough()
+          !startEnough())
         "
             >
                 <template #action>
@@ -662,7 +822,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 :message="`Not enough tokens in the node wallet for gas. Requires at least ${gasFeeMinCNXAlert} CNX.`"
                 class="top-alert"
                 v-if="
-          [nodeAPI.NODE_STATUS_RUNNING, nodeAPI.NODE_STATUS_PAUSED].includes(nodeStatus.status) &&
+          (isNodeRunning || isNodePaused) &&
           accountStatus.address !== '' &&
           !gasEnough()
         "
@@ -685,14 +845,14 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             type="circle"
                             :size="70"
                             :percent="100"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING"
+                            v-if="isNodeRunning"
                         />
                         <a-progress
                             type="circle"
                             :size="70"
                             :percent="100"
                             status="exception"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_ERROR"
+                            v-if="isNodeError"
                         >
                         </a-progress>
                         <a-progress
@@ -700,21 +860,15 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :size="70"
                             :percent="100"
                             :stroke-color="'lightgray'"
-                            v-if="
-                [
-                  nodeAPI.NODE_STATUS_PAUSED,
-                  nodeAPI.NODE_STATUS_STOPPED,
-                  nodeAPI.NODE_STATUS_PENDING
-                ].indexOf(nodeStatus.status) !== -1
-              "
+                            v-if="(isNodePaused || isNodeStoppedLike)"
                         >
                             <template #format>
                 <span style="font-size: 14px; color: lightgray">
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING"
+                  <span v-if="isNodeInitializing"
                   >Preparing</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED">Paused</span>
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">Stopped</span>
+                  <span v-if="isNodePaused">Paused</span>
+                  <span v-if="isNodeStoppedLike">Stopped</span>
                 </span>
                             </template>
                         </a-progress>
@@ -723,23 +877,17 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             :size="70"
                             :percent="100"
                             :stroke-color="'cornflowerblue'"
-                            v-if="
-                [
-                  nodeAPI.NODE_STATUS_PENDING_PAUSE,
-                  nodeAPI.NODE_STATUS_PENDING_STOP,
-                  nodeAPI.NODE_STATUS_INITIALIZING
-                ].indexOf(nodeStatus.status) !== -1
-              "
+                            v-if="(isNodePendingPause || isNodePendingStop || isNodeInitializing)"
                         >
                             <template #format>
                 <span style="font-size: 14px; color: cornflowerblue">
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_PAUSE"
+                  <span v-if="isNodePendingPause"
                   >Pausing</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PENDING_STOP"
+                  <span v-if="isNodePendingStop"
                   >Stopping</span
                   >
-                  <span v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING"
+                  <span v-if="isNodeInitializing"
                   >Preparing</span
                   >
                 </span>
@@ -747,7 +895,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                         </a-progress>
                     </a-col>
                     <a-col :span="12">
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING">
+                        <div class="node-op-btn" v-if="isNodeRunning">
                             <a-button
                                 :icon="h(PauseCircleOutlined)"
                                 @click="sendNodeAction('pause')"
@@ -760,7 +908,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                         <div
                             class="node-op-btn"
                             style="margin-top: 8px"
-                            v-if="nodeStatus.status === nodeAPI.NODE_STATUS_RUNNING"
+                            v-if="isNodeRunning"
                         >
                             <a-button
                                 :icon="h(LogoutOutlined)"
@@ -771,7 +919,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div class="node-op-btn" v-if="isNodeStoppedLike">
                             <a-button
                                 type="primary"
                                 :icon="h(PlayCircleOutlined)"
@@ -782,7 +930,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_STOPPED">
+                        <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="isNodeStoppedLike">
                             <a-typography-text type="secondary">
                                 Staking: {{ settings.staking_amount }} CNX
                             </a-typography-text>
@@ -793,7 +941,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                                 @click="systemStore.showSettingsModal = true"
                             />
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_PAUSED">
+                        <div class="node-op-btn" v-if="isNodePaused">
                             <a-button
                                 type="primary"
                                 :icon="h(PlayCircleOutlined)"
@@ -804,7 +952,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             </a-button
                             >
                         </div>
-                        <div class="node-op-btn" v-if="nodeStatus.status === nodeAPI.NODE_STATUS_INITIALIZING">
+                        <div class="node-op-btn" v-if="isNodeInitializing">
                             <a-button type="primary" :icon="h(PlayCircleOutlined)" disabled>Start</a-button>
                         </div>
                     </a-col>
@@ -1016,6 +1164,79 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-card>
         </a-col>
     </a-row>
+    <a-row
+        ref="cardsRowDelegators"
+        v-if="accountStatus.delegator_share !== 0"
+        :gutter="[16, 16]"
+        style="margin-top: 16px"
+    >
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 12 }"
+            :md="{ span: 12 }"
+            :lg="{ span: 10 }"
+            :xl="{ span: 8, offset: 1 }"
+            :xxl="{ span: 8, offset: 3 }"
+        >
+            <a-card title="Delegator Rewards" :bordered="false" style="height: 100%; opacity: 0.9">
+                <a-row>
+                    <a-col :span="12">
+                        <a-statistic title="CNX Today" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorEarningsToday }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="12">
+                        <a-statistic title="CNX Total" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorEarningsTotal }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+        <a-col
+            :xs="{ span: 24 }"
+            :sm="{ span: 12 }"
+            :md="{ span: 12 }"
+            :lg="{ span: 14 }"
+            :xl="{ span: 14 }"
+            :xxl="{ span: 10 }"
+        >
+            <a-card title="Delegators" :bordered="false" style="height: 100%; opacity: 0.9">
+                <a-row>
+                    <a-col :span="8">
+                        <a-statistic title="Delegator Share" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountStatus.delegator_share }}%</a-typography-text>
+                                <a-button @click="systemStore.showSettingsModal = true" style="margin-left: 8px">
+                                    <template #icon>
+                                        <EditOutlined />
+                                    </template>
+                                </a-button>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="Delegators" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ accountStatus.delegator_num }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                    <a-col :span="8">
+                        <a-statistic title="CNX Staked" class="wallet-value">
+                            <template #formatter>
+                                <a-typography-text>{{ delegatorStaked }}</a-typography-text>
+                            </template>
+                        </a-statistic>
+                    </a-col>
+                </a-row>
+            </a-card>
+        </a-col>
+    </a-row>
     <a-row ref="cardsRow2" :gutter="[16, 16]" style="margin-top: 16px">
         <a-col
             :xs="{ span: 24, offset: 0 }"
@@ -1190,7 +1411,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                     <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                    <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                    <a-typography-link href="https://portal.crynux.io" target="_blank">Portal</a-typography-link>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                     <a-typography-text :style="{'color':'white'}">Node v{{ appVersion }}</a-typography-text>
                     <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
@@ -1252,8 +1473,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             >Discord
                             </a-typography-link>
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                            <a-typography-link href="https://netstats.crynux.io" target="_blank"
-                            >Netstats
+                            <a-typography-link href="https://portal.crynux.io" target="_blank"
+                            >Portal
                             </a-typography-link>
                         </a-space>
                     </a-space>
@@ -1302,7 +1523,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
                             <a-typography-link :href="config.discord_link" target="_blank">Discord</a-typography-link>
                             <span class="bottom-bar-divider">&nbsp;|&nbsp;</span>
-                            <a-typography-link href="https://netstats.crynux.io" target="_blank">Netstats</a-typography-link>
+                            <a-typography-link href="https://portal.crynux.io" target="_blank">Portal</a-typography-link>
                         </a-space>
                     </a-space>
                 </div>
@@ -1414,7 +1635,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
         :mask-closable="false"
         ok-text="Save"
         :confirm-loading="isSaving"
-        :ok-button-props="{ disabled: !isStakingAmountValid }"
+        :ok-button-props="{ disabled: isSettingsSaveDisabled }"
         @ok="handleSettingsSave"
         @cancel="handleSettingsCancel"
     >
@@ -1425,6 +1646,13 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             show-icon
             style="margin-bottom: 24px;"
         />
+        <a-alert
+            v-if="!hasEnoughGas && (isStakingChanged || isDelegatorShareChanged)"
+            :message="settingsInsufficientText"
+            type="error"
+            show-icon
+            style="margin-bottom: 16px;"
+        />
         <a-form layout="vertical">
             <a-form-item
                 label="Staking Amount"
@@ -1432,6 +1660,37 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 :help="isStakingAmountValid ? `Minimum staking amount is ${config.min_staking_amount} CNX.` : `Staking amount must be an integer and cannot be less than ${config.min_staking_amount}.`"
             >
                 <a-input-number v-model:value="settingsInModal.staking_amount" prefix="CNX" style="width: 100%"/>
+            </a-form-item>
+            <a-form-item>
+                <template #label>
+                    Delegator Share
+                    <a-tooltip placement="right">
+                        <template #title>
+                            <div style="max-width: 420px">
+                                <ul style="padding-left: 16px; margin: 0;">
+                                    <li>Allocate a portion of rewards to Delegators to attract more staking.</li>
+                                    <li>With a non-zero Delegator Share, your node appears in the Portal's Stakeable Nodes list and users can stake to your node.</li>
+                                    <li>A higher staking score leads to more tasks and more rewards.</li>
+                                </ul>
+                            </div>
+                        </template>
+                        <QuestionCircleOutlined style="margin-left: 6px; color: rgba(0, 0, 0, 0.45)" />
+                    </a-tooltip>
+                </template>
+                <a-row>
+                    <a-col :span="20">
+                        <a-slider
+                            v-model:value="settingsInModal.delegator_share"
+                            :min="0"
+                            :max="100"
+                            :step="1"
+                            :tooltip-formatter="value => `${value}%`"
+                        />
+                    </a-col>
+                    <a-col :span="4" style="text-align: right;">
+                        <a-typography-text>{{ settingsInModal.delegator_share }}%</a-typography-text>
+                    </a-col>
+                </a-row>
             </a-form-item>
         </a-form>
     </a-modal>
