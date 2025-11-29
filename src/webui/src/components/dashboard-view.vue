@@ -785,10 +785,18 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             </a-alert>
             <a-alert
                 type="error"
-                message="Node is kicked out"
+                message="Node was kicked out"
                 class="top-alert"
                 v-if="nodeStatus.status === nodeAPI.NODE_STATUS_KICKED_OUT"
-            ></a-alert>
+            >
+                <template #description>
+                    <div>Your node was forced to stop because its Quality of Service (QoS) score fell below the required threshold.</div>
+                    <div>A low QoS score is typically caused by slow task submission, which can happen with a slow or unstable network connection, limited VRAM, or lower GPU frequency.</div>
+                    <div>Please review and improve your hardware and network setup, then rejoin the network after the performance issues are resolved. For more details, see the QoS documentation:
+                        <a-typography-link href="https://docs.crynux.io/system-design/quality-of-service-qos" target="_blank">QoS Scores</a-typography-link>
+                    </div>
+                </template>
+            </a-alert>
             <a-alert
                 type="error"
                 :message="`Not enough tokens in the node wallet. Requires ${requiredStartTotalCNXAlert} CNX in total.`"
