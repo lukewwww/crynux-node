@@ -1,3 +1,4 @@
+from inspect import signature
 import json
 import os
 import shutil
@@ -303,8 +304,11 @@ class WebRelay(Relay):
 
     @_web_relay_restart_pool_error
     async def node_get_node_info(self) -> NodeInfo:
+        input = {"address": self.node_address}
+        timestamp, signature = self.signer.sign(input=input)
         resp = await self.client.get(
             f"/v2/node/{self.node_address}",
+            params={"timestamp": timestamp, "signature": signature}
         )
         resp = _process_resp(resp, "nodeGetNodeInfo")
         content = resp.json()
