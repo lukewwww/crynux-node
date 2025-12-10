@@ -121,17 +121,17 @@ class NodeStaking(Event):
     staking_amount: str
 
 
-class UserStaking(Event):
-    type: EventType = Field(default="UserStaking", init_var=False, frozen=True)
-    user_address: AddressFromStr
+class DelegatorStaking(Event):
+    type: EventType = Field(default="DelegatorStaking", init_var=False, frozen=True)
+    delegator_address: AddressFromStr
     node_address: AddressFromStr
     amount: str
     network: str
 
 
-class UserUnstaking(Event):
-    type: EventType = Field(default="UserUnstaking", init_var=False, frozen=True)
-    user_address: AddressFromStr
+class DelegatorUnstaking(Event):
+    type: EventType = Field(default="DelegatorUnstaking", init_var=False, frozen=True)
+    delegator_address: AddressFromStr
     node_address: AddressFromStr
     amount: str
     network: str
