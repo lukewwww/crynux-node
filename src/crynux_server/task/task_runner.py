@@ -292,6 +292,7 @@ class InferenceTaskRunner(InferenceTaskRunnerBase):
             _logger.error(
                 f"Cancel task {self.task_id_commitment.hex()} failed due to {e.message}"
             )
+            raise
         except get_cancelled_exc_class():
             raise
         except Exception as e:
