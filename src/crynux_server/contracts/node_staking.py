@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from eth_typing import ChecksumAddress
 from web3 import AsyncWeb3, Web3
 
-from crynux_server.models import ChainNodeStakingInfo
+from crynux_server.models import ChainNodeStakingInfo, ChainNodeStakingStatus
 
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
@@ -49,6 +49,20 @@ class NodeStakingContract(ContractWrapper):
             w3=w3,
         )
 
+    async def set_force_unstake_delay(
+        self,
+        delay: int,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "setForceUnstakeDelay",
+            delay=delay,
+            option=option,
+            w3=w3,
+        )
+
     async def get_min_stake_amount(self, *, w3: Optional[AsyncWeb3] = None) -> int:
         return await self._function_call(
             "getMinStakeAmount",
@@ -67,6 +81,8 @@ class NodeStakingContract(ContractWrapper):
             node_address=res[0],
             staked_balance=res[1],
             staked_credits=res[2],
+            status=ChainNodeStakingStatus(res[3]),
+            unstake_timestamp=res[4],
         )
 
     async def get_all_node_addresses(
@@ -89,6 +105,30 @@ class NodeStakingContract(ContractWrapper):
             "stake",
             stakedAmount=staked_amount,
             value=value,
+            option=option,
+            w3=w3,
+        )
+
+    async def try_unstake(
+        self,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "tryUnstake",
+            option=option,
+            w3=w3,
+        )
+
+    async def force_unstake(
+        self,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "forceUnstake",
             option=option,
             w3=w3,
         )

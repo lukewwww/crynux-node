@@ -300,6 +300,8 @@ class NodeStateManager(object):
                 async with self._tx_session(
                     expected_node_status=models.NodeStatus.Running
                 ):
+                    waiter = await self.contracts.node_staking_contract.try_unstake(option=option)
+                    await waiter.wait()
                     await self.relay.node_quit()
                     await self._wait_for_stop()
                 _logger.info("Node leaves the network successfully.")
@@ -364,10 +366,12 @@ class NodeStateManager(object):
         option: "Optional[TxOption]" = None,
     ):
         async with self._tx_session(expected_node_status=models.NodeStatus.Running):
-            await self.relay.node_quit()
+            waiter = await self.contracts.node_staking_contract.try_unstake(option=option)
 
             async def wait():
                 async with self._wrap_tx_error():
+                    await waiter.wait()
+                    await self.relay.node_quit()
                     await self._wait_for_stop()
 
             return wait
