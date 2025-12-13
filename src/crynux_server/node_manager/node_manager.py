@@ -600,7 +600,8 @@ class NodeManager(object):
                             models.ChainNodeStakingStatus.PendingUnstaked,
                             models.ChainNodeStakingStatus.Unstaked,
                         ]
-                    ):
+                    ):  
+                        _logger.info("Node is unstaked but not quit, quitting now...")
                         await self._relay.node_quit()
                         return False
 
