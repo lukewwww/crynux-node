@@ -95,7 +95,14 @@ class NodeScoreState(BaseModel):
     prob_weight: float
 
 
+class ChainNodeStakingStatus(IntEnum):
+    Unstaked = 0
+    Staked = 1
+    PendingUnstaked = 2
+
 class ChainNodeStakingInfo(BaseModel):
     node_address: str
     staked_balance: int
     staked_credits: int
+    status: ChainNodeStakingStatus
+    unstake_timestamp: int

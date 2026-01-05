@@ -588,21 +588,35 @@ class NodeManager(object):
             with attemp:
                 try:
                     node_info = await self._relay.node_get_node_info()
-                    status = node_info.status
-                    if status != models.ChainNodeStatus.QUIT:
-                        return True
-                    balance = await self._contracts.get_balance(self._contracts.account)
-                    credits = await self._contracts.credits_contract.get_credits(
-                        self._contracts.account
-                    )
                     staking_info = (
                         await self._contracts.node_staking_contract.get_staking_info(
                             self._contracts.account
                         )
                     )
-                    current_staking_amount = (
-                        staking_info.staked_balance + staking_info.staked_credits
+                    if (
+                        node_info.status != models.ChainNodeStatus.QUIT
+                        and staking_info.status
+                        in [
+                            models.ChainNodeStakingStatus.PendingUnstaked,
+                            models.ChainNodeStakingStatus.Unstaked,
+                        ]
+                    ):  
+                        _logger.info("Node is unstaked but not quit, quitting now...")
+                        await self._relay.node_quit()
+                        return False
+
+                    if node_info.status != models.ChainNodeStatus.QUIT:
+                        return True
+                    balance = await self._contracts.get_balance(self._contracts.account)
+                    credits = await self._contracts.credits_contract.get_credits(
+                        self._contracts.account
                     )
+                    if staking_info.status == models.ChainNodeStakingStatus.Staked:
+                        current_staking_amount = (
+                            staking_info.staked_balance + staking_info.staked_credits
+                        )
+                    else:
+                        current_staking_amount = 0
                     total_balance = balance + credits
                     if total_balance + current_staking_amount >= node_amount:
                         return True
