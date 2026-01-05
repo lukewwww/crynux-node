@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 from eth_typing import ChecksumAddress
 from web3 import AsyncWeb3, Web3
 
-from crynux_server.models import ChainNodeStakingInfo
-
 from .utils import ContractWrapper, TxWaiter
 from .w3_pool import W3Pool
 

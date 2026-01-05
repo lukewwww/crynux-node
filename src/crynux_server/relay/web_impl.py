@@ -30,7 +30,7 @@ def _process_resp(resp: httpx.Response, method: str):
         return resp
     except httpx.HTTPStatusError as e:
         message = str(e)
-        if resp.status_code == 400:
+        if resp.status_code == 400 or resp.status_code == 500:
             try:
                 content = resp.json()
                 if "data" in content:
