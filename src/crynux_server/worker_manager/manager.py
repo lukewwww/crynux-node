@@ -60,6 +60,7 @@ class WorkerManager(object):
             output_dir = ""
             worker_pid_file = "crynux_worker.pid"
 
+        cw_worker_url = f"{self.config.relay_url}/v1/worker"
         args = get_exe_head(script_dir)
         envs = os.environ.copy()
         envs.update(
@@ -68,7 +69,8 @@ class WorkerManager(object):
                 "cw_data_dir__models__huggingface": hf_cache_dir,
                 "cw_data_dir__models__external": external_cache_dir,
                 "cw_output_dir": output_dir,
-                "cw_pid_file": worker_pid_file
+                "cw_pid_file": worker_pid_file,
+                "cw_worker_url": cw_worker_url,
             }
         )
         if (
