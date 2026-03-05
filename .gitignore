@@ -20,3 +20,4 @@ dist/*
 task/*
 worker/
 .env
+.cursor
