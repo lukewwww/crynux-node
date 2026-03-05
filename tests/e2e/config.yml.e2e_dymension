@@ -1,0 +1,57 @@
+log:
+  # The directory to save the log files
+  dir: "logs"
+
+  # Log level could be "DEBUG", "INFO", "WARNING", "ERROR"
+  level: "INFO"
+
+ethereum:
+  # Keep online chain for e2e integration
+  provider: "https://json-rpc.testnet-dym.crynux.io"
+  network: "dymension"
+
+  # Blockchain parameters
+  gas_price: 700000000
+  gas: 8000000
+
+  # Contract addresses are replaced with e2e-specific values before build
+  contract:
+    benefit_address: "0xa4AC846337794C93d68D387Be77663e32AD415bb"
+    credits: "0xb592ee9c75873E13501e2eF1e2c31604C056f197"
+    node_staking: "0xf76C3f19c8976d0Bc49d48718669b99747b1837e"
+    delegated_staking: "0x4b0946BB12474332D865AfAc5F77554b503C5570"
+
+# The database used to store the local state data
+db:
+  # The database driver, can only be sqlite now
+  driver: sqlite
+  # The sqlite database file
+  filename: db/server.db
+
+# The URL of the Relay
+relay_url: "http://crynux_relay:8080"
+
+# The directory that stores the distribution files of the WebUI
+web_dist: dist
+
+# The resource dir for icons etc.
+resource_dir: res
+
+task_config:
+  # Models that will be preloaded before any task execution
+  preloaded_models:
+    sd_base:
+      - id: "crynux-network/sdxl-turbo"
+        variant: "fp16"
+    gpt_base:
+      - id: "Qwen/Qwen2.5-7B"
+    controlnet: []
+    lora: []
+
+  # The proxy server used when downloading models
+  proxy:
+    host: ""
+    port: 33210
+
+  # URL of repository stores patch files of crynux worker
+  worker_patch_url: https://raw.githubusercontent.com/crynux-network/crynux-worker/main
