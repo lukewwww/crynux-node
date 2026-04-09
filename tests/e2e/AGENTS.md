@@ -42,4 +42,8 @@
 - Wallet account requirements:
   - `NODE_PRIVATE_KEY` must be provided as a single-line private key value with `0x` prefix.
   - The key material must be persisted at `<mount-root>/config/private_key.txt` with no trailing whitespace.
-  - The corresponding on-chain account balance must be greater than `500 CNX`.
+
+
+## Top up the node wallet account
+
+The balance of the node wallet account must be greater than `500 CNX` to cover the minimum staking amount and node join tx gas fee.
