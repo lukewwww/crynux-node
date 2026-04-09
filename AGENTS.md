@@ -4,6 +4,8 @@ Before adding new code, first check whether existing logic can be reused. Prefer
 
 Comments must describe final behavior only. Do not add comments that explain change history, such as what was added, removed, or why code was deleted. Keep comments concise and use them only for complex or non-obvious logic.
 
+Do not add defensive fallback logic unless its purpose is explicit, requirement-backed, and tied to a concrete failure mode.
+
 For WebUI-specific coding requirements, use `src/webui/AGENTS.md` as the source of truth.
 
 ## Debug Requirements
