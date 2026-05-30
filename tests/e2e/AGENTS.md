@@ -4,13 +4,13 @@
 
 - Workflow:
   1. Ensure the current working directory is the repository root.
-  2. Choose one target network: `near` or `dymension`.
+  2. Choose one target network: `near` or `base`.
   3. Copy the node config template by network:
      - If target network is `near`, copy `tests/e2e/config.yml.e2e_near` to `build/docker/config.yml.example`.
-     - If target network is `dymension`, copy `tests/e2e/config.yml.e2e_dymension` to `build/docker/config.yml.example`.
+     - If target network is `base`, copy `tests/e2e/config.yml.e2e_base` to `build/docker/config.yml.example`.
   4. Copy the WebUI config by network:
      - If target network is `near`, copy `src/webui/src/config.near.json` to `src/webui/src/config.json`.
-     - If target network is `dymension`, copy `src/webui/src/config.dymension.json` to `src/webui/src/config.json`.
+     - If target network is `base`, copy `src/webui/src/config.base.json` to `src/webui/src/config.json`.
   5. Build the image from `build/docker/Dockerfile` with tag `crynux-node:e2e`.
   6. Verify `crynux-node:e2e` exists locally.
 

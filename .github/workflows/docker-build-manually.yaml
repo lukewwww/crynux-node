@@ -10,7 +10,7 @@ on:
       blockchain:
         description: 'Blockchain'
         required: true
-        default: 'dymension'
+        default: 'base'
 
 env:
   REGISTRY: ghcr.io

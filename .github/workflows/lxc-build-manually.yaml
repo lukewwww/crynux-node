@@ -10,7 +10,7 @@ on:
       blockchain:
         description: 'Blockchain'
         required: true
-        default: 'dymension'
+        default: 'base'
       tag:
         description: 'Git tag/branch to checkout code from (if not specified, use selected branch)'
         required: false
@@ -29,7 +29,7 @@ jobs:
     permissions:
       contents: read
     env:
-      BLOCKCHAIN: ${{ inputs.blockchain || 'dymension' }}
+      BLOCKCHAIN: ${{ inputs.blockchain || 'base' }}
 
     steps:
       - name: Maximize build space
