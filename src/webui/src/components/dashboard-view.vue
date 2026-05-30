@@ -1431,11 +1431,9 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
-                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
+                         alt="Base logo"/>
                     <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
-                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
-                         alt="Kasplex logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1484,11 +1482,9 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
-                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
+                         alt="Base logo"/>
                     <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
-                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
-                         alt="Kasplex logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1532,11 +1528,9 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
-                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
+                         alt="Base logo"/>
                     <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
-                    <img v-if="config.network === 'kasplex'" class="kasplex-logo" src="/kasplex.png" width="120"
-                         alt="Kasplex logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1590,8 +1584,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo" style="float: left;margin-top: 24px">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'dymension'" class="dymension-logo" src="/dymension.png" width="120"
-                         alt="Dymension logo"/>
+                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
+                         alt="Base logo"/>
                     <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
                 </div>
             </a-col>
@@ -1783,8 +1777,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
         margin-left 4px
         margin-right 4px
 
-    .dymension-logo
-        margin-top 4px
+    .base-logo
+        margin-top -4px
 
 .xs .top-row
     height 64px

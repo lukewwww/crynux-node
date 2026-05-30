@@ -5,7 +5,7 @@
         "level": "info"
     },
     "block_explorer": "",
-    "network": "dymension",
+    "network": "base",
     "min_staking_amount": 400,
     "gas_fee_min_wei": "10000000000000000"
 }

@@ -31,7 +31,7 @@ jobs:
     strategy:
       matrix:
         blockchain:
-          - dymension
+          - base
           - near
     name: Build the Docker image for ${{ matrix.blockchain }}
     uses: ./.github/workflows/release-all-docker.yml
@@ -45,7 +45,7 @@ jobs:
       max-parallel: 1
       matrix:
         blockchain:
-          - dymension
+          - base
           - near
     name: Build the LXC image for ${{ matrix.blockchain }}
     uses: ./.github/workflows/release-all-lxc.yml
@@ -59,7 +59,7 @@ jobs:
     strategy:
       matrix:
         blockchain:
-          - dymension
+          - base
           - near
     name: Build the Mac DMG for ${{ matrix.blockchain }}
     uses: ./.github/workflows/release-all-mac.yml
@@ -73,7 +73,7 @@ jobs:
     strategy:
       matrix:
         blockchain:
-          - dymension
+          - base
           - near
     name: Build the Windows binary for ${{ matrix.blockchain }}
     uses: ./.github/workflows/release-all-windows.yml
@@ -103,29 +103,29 @@ jobs:
       - name: Read Google Drive links
         id: read_links
         run: |
-          # Read Dymension links
-          WINDOWS_DOWNLOAD_LINK_DYMENSION=$(tr -d '\r\n' < gdrive-links-dymension/download_link.txt | sed 's/[\x00-\x1F]//g')
-          WINDOWS_PREVIEW_LINK_DYMENSION=$(tr -d '\r\n' < gdrive-links-dymension/view_link.txt | sed 's/[\x00-\x1F]//g')
+          # Read Base links
+          WINDOWS_DOWNLOAD_LINK_BASE=$(tr -d '\r\n' < gdrive-links-base/download_link.txt | sed 's/[\x00-\x1F]//g')
+          WINDOWS_PREVIEW_LINK_BASE=$(tr -d '\r\n' < gdrive-links-base/view_link.txt | sed 's/[\x00-\x1F]//g')
 
           # Read Near links
           WINDOWS_DOWNLOAD_LINK_NEAR=$(tr -d '\r\n' < gdrive-links-near/download_link.txt | sed 's/[\x00-\x1F]//g')
           WINDOWS_PREVIEW_LINK_NEAR=$(tr -d '\r\n' < gdrive-links-near/view_link.txt | sed 's/[\x00-\x1F]//g')
 
-          echo "Windows download link (Dymension): ${WINDOWS_DOWNLOAD_LINK_DYMENSION}, length: ${#WINDOWS_DOWNLOAD_LINK_DYMENSION}"
-          echo "Windows preview link (Dymension): ${WINDOWS_PREVIEW_LINK_DYMENSION}, length: ${#WINDOWS_PREVIEW_LINK_DYMENSION}"
+          echo "Windows download link (Base): ${WINDOWS_DOWNLOAD_LINK_BASE}, length: ${#WINDOWS_DOWNLOAD_LINK_BASE}"
+          echo "Windows preview link (Base): ${WINDOWS_PREVIEW_LINK_BASE}, length: ${#WINDOWS_PREVIEW_LINK_BASE}"
           echo "Windows download link (Near): ${WINDOWS_DOWNLOAD_LINK_NEAR}, length: ${#WINDOWS_DOWNLOAD_LINK_NEAR}"
           echo "Windows preview link (Near): ${WINDOWS_PREVIEW_LINK_NEAR}, length: ${#WINDOWS_PREVIEW_LINK_NEAR}"
 
           # Set outputs
-          echo "WINDOWS_DOWNLOAD_LINK_DYMENSION=${WINDOWS_DOWNLOAD_LINK_DYMENSION}" >> $GITHUB_ENV
-          echo "WINDOWS_PREVIEW_LINK_DYMENSION=${WINDOWS_PREVIEW_LINK_DYMENSION}" >> $GITHUB_ENV
+          echo "WINDOWS_DOWNLOAD_LINK_BASE=${WINDOWS_DOWNLOAD_LINK_BASE}" >> $GITHUB_ENV
+          echo "WINDOWS_PREVIEW_LINK_BASE=${WINDOWS_PREVIEW_LINK_BASE}" >> $GITHUB_ENV
           echo "WINDOWS_DOWNLOAD_LINK_NEAR=${WINDOWS_DOWNLOAD_LINK_NEAR}" >> $GITHUB_ENV
           echo "WINDOWS_PREVIEW_LINK_NEAR=${WINDOWS_PREVIEW_LINK_NEAR}" >> $GITHUB_ENV
 
       - name: Print the Google Drive links
         run: |
-          echo "Windows download link (Dymension): ${{ env.WINDOWS_DOWNLOAD_LINK_DYMENSION }}"
-          echo "Windows preview link (Dymension): ${{ env.WINDOWS_PREVIEW_LINK_DYMENSION }}"
+          echo "Windows download link (Base): ${{ env.WINDOWS_DOWNLOAD_LINK_BASE }}"
+          echo "Windows preview link (Base): ${{ env.WINDOWS_PREVIEW_LINK_BASE }}"
           echo "Windows download link (Near): ${{ env.WINDOWS_DOWNLOAD_LINK_NEAR }}"
           echo "Windows preview link (Near): ${{ env.WINDOWS_PREVIEW_LINK_NEAR }}"
 
@@ -146,11 +146,11 @@ jobs:
       - name: Generate the changelog
         run: |
           # Escape the links for sed
-          windows_dymension_link_escaped=$(printf '%s\n' "${{ env.WINDOWS_DOWNLOAD_LINK_DYMENSION }}" | sed -e 's/[\/&]/\\&/g')
+          windows_base_link_escaped=$(printf '%s\n' "${{ env.WINDOWS_DOWNLOAD_LINK_BASE }}" | sed -e 's/[\/&]/\\&/g')
           windows_near_link_escaped=$(printf '%s\n' "${{ env.WINDOWS_DOWNLOAD_LINK_NEAR }}" | sed -e 's/[\/&]/\\&/g')
           # Replace placeholders in the changelog template
           sed -i "s/RELEASE_VERSION/${{ env.RELEASE_VERSION }}/g" build/changelog-template.md
-          sed -i "s/WINDOWS_LINK_DYMENSION/$windows_dymension_link_escaped/g" build/changelog-template.md
+          sed -i "s/WINDOWS_LINK_BASE/$windows_base_link_escaped/g" build/changelog-template.md
           sed -i "s/WINDOWS_LINK_NEAR/$windows_near_link_escaped/g" build/changelog-template.md
 
       - id: release
@@ -160,14 +160,14 @@ jobs:
         with:
           body_path: build/changelog-template.md
           files: |
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-dymension-mac-arm64-unsigned.dmg
+            crynux-node-helium-v${{ env.RELEASE_VERSION }}-base-mac-arm64-unsigned.dmg
             crynux-node-helium-v${{ env.RELEASE_VERSION }}-near-mac-arm64-unsigned.dmg
     outputs:
-      windows-download-link-dymension: ${{ env.WINDOWS_DOWNLOAD_LINK_DYMENSION }}
-      windows-preview-link-dymension: ${{ env.WINDOWS_PREVIEW_LINK_DYMENSION }}
+      windows-download-link-base: ${{ env.WINDOWS_DOWNLOAD_LINK_BASE }}
+      windows-preview-link-base: ${{ env.WINDOWS_PREVIEW_LINK_BASE }}
       windows-download-link-near: ${{ env.WINDOWS_DOWNLOAD_LINK_NEAR }}
       windows-preview-link-near: ${{ env.WINDOWS_PREVIEW_LINK_NEAR }}
-      mac-link-dymension: ${{ fromJSON(steps.release.outputs.assets)[0].browser_download_url }}
+      mac-link-base: ${{ fromJSON(steps.release.outputs.assets)[0].browser_download_url }}
       mac-link-near: ${{ fromJSON(steps.release.outputs.assets)[1].browser_download_url }}
 
   update-documentation:
@@ -183,11 +183,11 @@ jobs:
           event-type: node-released
           client-payload: |-
             {
-              "windows-download-link-dymension": "${{ needs.publish-release.outputs.windows-download-link-dymension }}",
-              "windows-preview-link-dymension": "${{ needs.publish-release.outputs.windows-preview-link-dymension }}",
+              "windows-download-link-base": "${{ needs.publish-release.outputs.windows-download-link-base }}",
+              "windows-preview-link-base": "${{ needs.publish-release.outputs.windows-preview-link-base }}",
               "windows-download-link-near": "${{ needs.publish-release.outputs.windows-download-link-near }}",
               "windows-preview-link-near": "${{ needs.publish-release.outputs.windows-preview-link-near }}",
-              "mac-link-dymension": "${{ needs.publish-release.outputs.mac-link-dymension }}",
+              "mac-link-base": "${{ needs.publish-release.outputs.mac-link-base }}",
               "mac-link-near": "${{ needs.publish-release.outputs.mac-link-near }}",
               "release-version": "${{ env.RELEASE_VERSION }}"
             }

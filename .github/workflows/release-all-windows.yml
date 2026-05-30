@@ -22,7 +22,7 @@ on:
       blockchain:
         description: 'Blockchain'
         required: true
-        default: 'dymension'
+        default: 'base'
       release_version:
         required: true
         type: string

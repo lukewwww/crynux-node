@@ -1,7 +1,7 @@
 ### Windows
 
-#### Dymension
-[crynux-node-helium-vRELEASE_VERSION-dymension-windows-x64.zip](WINDOWS_LINK_DYMENSION)
+#### Base
+[crynux-node-helium-vRELEASE_VERSION-base-windows-x64.zip](WINDOWS_LINK_BASE)
 
 #### Near
 [crynux-node-helium-vRELEASE_VERSION-near-windows-x64.zip](WINDOWS_LINK_NEAR)
