@@ -9,7 +9,7 @@ linux_binary:
 	./package.sh
 
 install: linux_binary
-	install -D ./dist/crynux-node-helium-v2.0.6-linux-x64 \
+	install -D ./dist/crynux-node-lithium-v2.0.6-linux-x64 \
 		$(DESTDIR)$(prefix)/crynux-node
 
 uninstall:

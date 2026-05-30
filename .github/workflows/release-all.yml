@@ -160,8 +160,8 @@ jobs:
         with:
           body_path: build/changelog-template.md
           files: |
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-base-mac-arm64-unsigned.dmg
-            crynux-node-helium-v${{ env.RELEASE_VERSION }}-near-mac-arm64-unsigned.dmg
+            crynux-node-lithium-v${{ env.RELEASE_VERSION }}-base-mac-arm64-unsigned.dmg
+            crynux-node-lithium-v${{ env.RELEASE_VERSION }}-near-mac-arm64-unsigned.dmg
     outputs:
       windows-download-link-base: ${{ env.WINDOWS_DOWNLOAD_LINK_BASE }}
       windows-preview-link-base: ${{ env.WINDOWS_PREVIEW_LINK_BASE }}

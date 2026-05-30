@@ -27,7 +27,7 @@ cp -r "webui/dist" "dist/crynux-node/webui/"
 ## Copy the resources
 cp -r "res" "dist/crynux-node/"
 
-RELEASE_NAME="crynux-node-helium-v${VERSION}-linux-bin-x64"
+RELEASE_NAME="crynux-node-lithium-v${VERSION}-linux-bin-x64"
 
 mv dist/crynux-node "dist/$RELEASE_NAME"
 

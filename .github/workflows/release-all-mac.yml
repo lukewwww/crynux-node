@@ -49,11 +49,11 @@ jobs:
       - name: rename
         shell: bash
         run: |
-          mv build/crynux_node/dist/crynux-node-helium-v${{ inputs.release_version }}-mac-arm64-unsigned.dmg build/crynux_node/dist/crynux-node-helium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-mac-arm64-unsigned.dmg
+          mv build/crynux_node/dist/crynux-node-lithium-v${{ inputs.release_version }}-mac-arm64-unsigned.dmg build/crynux_node/dist/crynux-node-lithium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-mac-arm64-unsigned.dmg
 
       - name: Upload the artifact
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: mac-app-${{ inputs.release_version }}-${{ inputs.blockchain }}
-          path: build/crynux_node/dist/crynux-node-helium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-mac-arm64-unsigned.dmg
+          path: build/crynux_node/dist/crynux-node-lithium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-mac-arm64-unsigned.dmg

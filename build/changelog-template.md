@@ -1,10 +1,10 @@
 ### Windows
 
 #### Base
-[crynux-node-helium-vRELEASE_VERSION-base-windows-x64.zip](WINDOWS_LINK_BASE)
+[crynux-node-lithium-vRELEASE_VERSION-base-windows-x64.zip](WINDOWS_LINK_BASE)
 
 #### Near
-[crynux-node-helium-vRELEASE_VERSION-near-windows-x64.zip](WINDOWS_LINK_NEAR)
+[crynux-node-lithium-vRELEASE_VERSION-near-windows-x64.zip](WINDOWS_LINK_NEAR)
 
 
 ### Mac
