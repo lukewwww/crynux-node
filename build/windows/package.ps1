@@ -39,7 +39,7 @@ Copy-Item -Recurse "res" "dist/Crynux Node/res"
 
 # Create the archive file
 $VERSION = "3.0.0"
-$RELEASE_NAME = "crynux-node-helium-v${VERSION}-windows-x64"
+$RELEASE_NAME = "crynux-node-lithium-v${VERSION}-windows-x64"
 
 Move-Item -Path "dist/Crynux Node" "dist/$RELEASE_NAME"
 

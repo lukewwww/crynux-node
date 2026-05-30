@@ -40,7 +40,7 @@ jobs:
                 with:
                     if-no-files-found: error
                     name: linux-bin
-                    path: build/crynux_node/dist/crynux-node-helium-v2.0.6-linux-bin-x64.tar.gz
+                    path: build/crynux_node/dist/crynux-node-lithium-v2.0.6-linux-bin-x64.tar.gz
 
     build-the-snap-package:
         runs-on: ubuntu-latest

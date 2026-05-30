@@ -7,7 +7,7 @@ log:
 
 ethereum:
   # Keep online chain for e2e integration
-  provider: "https://json-rpc.testnet-base.crynux.io"
+  provider: "https://json-rpc.base-sepolia.crynux.io"
   network: "base"
 
   # Blockchain parameters

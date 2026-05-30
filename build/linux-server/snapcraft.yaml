@@ -14,7 +14,7 @@ architectures:
 parts:
     crynux-node:
         plugin: dump
-        source: ./crynux-node-helium-v2.0.6-linux-bin-x64.tar.gz
+        source: ./crynux-node-lithium-v2.0.6-linux-bin-x64.tar.gz
         stage-packages:
             - ffmpeg
             - libsm6
