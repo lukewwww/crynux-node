@@ -21,6 +21,20 @@ class NodeStakingContract(ContractWrapper):
     ):
         super().__init__(w3_pool, "NodeStaking", contract_address)
 
+    async def set_parameter_controller(
+        self,
+        addr: ChecksumAddress,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "setParameterController",
+            addr=addr,
+            option=option,
+            w3=w3,
+        )
+
     async def set_admin_address(
         self,
         addr: ChecksumAddress,
@@ -69,6 +83,12 @@ class NodeStakingContract(ContractWrapper):
             w3=w3,
         )
 
+    async def get_force_unstake_delay(self, *, w3: Optional[AsyncWeb3] = None) -> int:
+        return await self._function_call(
+            "getForceUnstakeDelay",
+            w3=w3,
+        )
+
     async def get_staking_info(
         self, node_address: ChecksumAddress, *, w3: Optional[AsyncWeb3] = None
     ) -> ChainNodeStakingInfo:
@@ -86,10 +106,12 @@ class NodeStakingContract(ContractWrapper):
         )
 
     async def get_all_node_addresses(
-        self, *, w3: Optional[AsyncWeb3] = None
+        self, page: int = 1, page_size: int = 200, *, w3: Optional[AsyncWeb3] = None
     ) -> List[ChecksumAddress]:
         return await self._function_call(
             "getAllNodeAddresses",
+            page=page,
+            pageSize=page_size,
             w3=w3,
         )
 
