@@ -81,73 +81,36 @@ class Contracts(object):
                 self._account = w3.eth.default_account
                 _logger.info(f"Wallet address is {w3.eth.default_account}")
 
-                if benefit_address_contract_address is not None:
-                    self.benefit_address_contract = (
-                        benefit_address.BenefitAddressContract(
-                            self._w3_pool,
-                            w3.to_checksum_address(benefit_address_contract_address),
-                        )
-                    )
-                else:
-                    self.benefit_address_contract = (
-                        benefit_address.BenefitAddressContract(self._w3_pool)
-                    )
-                    waiter = await self.benefit_address_contract.deploy(
-                        option=option, w3=w3
-                    )
-                    await waiter.wait(w3=w3)
-                    benefit_address_contract_address = (
-                        self.benefit_address_contract.address
-                    )
+                if (
+                    credits_contract_address is None
+                    or benefit_address_contract_address is None
+                    or delegated_staking_contract_address is None
+                    or node_staking_contract_address is None
+                ):
+                    raise ValueError("all contract addresses must be provided")
 
-                if credits_contract_address is not None:
-                    self.credits_contract = credits.CreditsContract(
-                        self._w3_pool, w3.to_checksum_address(credits_contract_address)
-                    )
-                else:
-                    self.credits_contract = credits.CreditsContract(self._w3_pool)
-                    waiter = await self.credits_contract.deploy(option=option, w3=w3)
-                    await waiter.wait(w3=w3)
-                    credits_contract_address = self.credits_contract.address
-
-                if delegated_staking_contract_address is not None:
-                    self.delegated_staking_contract = delegated_staking.DelegatedStakingContract(
+                self.benefit_address_contract = (
+                    benefit_address.BenefitAddressContract(
                         self._w3_pool,
-                        w3.to_checksum_address(delegated_staking_contract_address)
+                        w3.to_checksum_address(benefit_address_contract_address),
                     )
-                else:
-                    self.delegated_staking_contract = delegated_staking.DelegatedStakingContract(self._w3_pool)
-                    waiter = await self.delegated_staking_contract.deploy(option=option, w3=w3)
-                    await waiter.wait(w3=w3)
-                    delegated_staking_contract_address = self.delegated_staking_contract.address
+                )
 
-                if node_staking_contract_address is not None:
-                    self.node_staking_contract = node_staking.NodeStakingContract(
+                self.credits_contract = credits.CreditsContract(
+                    self._w3_pool, w3.to_checksum_address(credits_contract_address)
+                )
+
+                self.delegated_staking_contract = (
+                    delegated_staking.DelegatedStakingContract(
                         self._w3_pool,
-                        w3.to_checksum_address(node_staking_contract_address),
+                        w3.to_checksum_address(delegated_staking_contract_address),
                     )
-                else:
-                    self.node_staking_contract = node_staking.NodeStakingContract(
-                        self._w3_pool
-                    )
-                    waiter = await self.node_staking_contract.deploy(
-                        credits_contract_address,
-                        benefit_address_contract_address,
-                        delegated_staking_contract_address,
-                        option=option,
-                        w3=w3,
-                    )
-                    await waiter.wait(w3=w3)
-                    node_staking_contract_address = self.node_staking_contract.address
+                )
 
-                    waiter = await self.credits_contract.set_staking_address(
-                        node_staking_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait(w3=w3)
-                    waiter = await self.delegated_staking_contract.set_node_staking_address(
-                        node_staking_contract_address, option=option, w3=w3
-                    )
-                    await waiter.wait(w3=w3)
+                self.node_staking_contract = node_staking.NodeStakingContract(
+                    self._w3_pool,
+                    w3.to_checksum_address(node_staking_contract_address),
+                )
 
                 self._initialized = True
 

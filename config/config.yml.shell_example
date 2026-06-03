@@ -10,6 +10,7 @@ ethereum:
   # Here we use the private chain for the Hydrogen Network
   provider: "https://json-rpc.base.crynux.io"
   network: "base"
+  chain_id: 18896214
 
   # The Blockchain params
   gas_price: 700000000

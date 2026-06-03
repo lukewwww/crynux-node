@@ -19,6 +19,34 @@ class DelegatedStakingContract(ContractWrapper):
     ):
         super().__init__(w3_pool, "DelegatedStaking", contract_address)
 
+    async def set_parameter_controller(
+        self,
+        addr: ChecksumAddress,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "setParameterController",
+            addr=addr,
+            option=option,
+            w3=w3,
+        )
+
+    async def set_admin_address(
+        self,
+        addr: ChecksumAddress,
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "setAdminAddress",
+            addr=addr,
+            option=option,
+            w3=w3,
+        )
+
     async def set_min_stake_amount(
         self,
         stake_amount: int,
@@ -36,20 +64,6 @@ class DelegatedStakingContract(ContractWrapper):
     async def get_min_stake_amount(self, *, w3: Optional[AsyncWeb3] = None) -> int:
         return await self._function_call(
             "getMinStakeAmount",
-            w3=w3,
-        )
-
-    async def set_node_staking_address(
-        self,
-        addr: ChecksumAddress,
-        *,
-        option: "Optional[TxOption]" = None,
-        w3: Optional[AsyncWeb3] = None,
-    ):
-        return await self._transaction_call(
-            "setNodeStakingAddress",
-            addr=addr,
-            option=option,
             w3=w3,
         )
 
@@ -111,10 +125,20 @@ class DelegatedStakingContract(ContractWrapper):
             w3=w3,
         )
 
-    async def get_all_node_delegator_shares(
+    async def get_delegatable_node_count(
         self, *, w3: Optional[AsyncWeb3] = None
+    ) -> int:
+        return await self._function_call("getDelegatableNodeCount", w3=w3)
+
+    async def get_delegatable_nodes(
+        self, page: int = 1, page_size: int = 200, *, w3: Optional[AsyncWeb3] = None
     ) -> Tuple[List[ChecksumAddress], List[int]]:
-        return await self._function_call("getAllNodeDelegatorShares", w3=w3)
+        return await self._function_call(
+            "getDelegatableNodes",
+            page=page,
+            pageSize=page_size,
+            w3=w3,
+        )
 
     async def get_delegation_staking_amount(
         self,
@@ -126,6 +150,18 @@ class DelegatedStakingContract(ContractWrapper):
         return await self._function_call(
             "getDelegationStakingAmount",
             delegatorAddress=delegator_address,
+            nodeAddress=node_address,
+            w3=w3,
+        )
+
+    async def get_node_staking_info_count(
+        self,
+        node_address: ChecksumAddress,
+        *,
+        w3: Optional[AsyncWeb3] = None,
+    ) -> int:
+        return await self._function_call(
+            "getNodeStakingInfoCount",
             nodeAddress=node_address,
             w3=w3,
         )
@@ -145,12 +181,16 @@ class DelegatedStakingContract(ContractWrapper):
     async def get_node_staking_infos(
         self,
         node_address: ChecksumAddress,
+        page: int = 1,
+        page_size: int = 200,
         *,
         w3: Optional[AsyncWeb3] = None,
     ) -> Tuple[List[ChecksumAddress], List[int]]:
         return await self._function_call(
             "getNodeStakingInfos",
             nodeAddress=node_address,
+            page=page,
+            pageSize=page_size,
             w3=w3,
         )
 
@@ -191,6 +231,22 @@ class DelegatedStakingContract(ContractWrapper):
     ) -> List[ChecksumAddress]:
         return await self._function_call(
             "getAllNodeAddresses",
+            w3=w3,
+        )
+
+    async def slash_node_delegations(
+        self,
+        node_address: ChecksumAddress,
+        delegators: List[ChecksumAddress],
+        *,
+        option: "Optional[TxOption]" = None,
+        w3: Optional[AsyncWeb3] = None,
+    ):
+        return await self._transaction_call(
+            "slashNodeDelegations",
+            nodeAddress=node_address,
+            delegators=delegators,
+            option=option,
             w3=w3,
         )
 

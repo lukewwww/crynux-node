@@ -242,7 +242,7 @@ Or if you are pulling the latest updates from a repo cloned earlier, use the fol
 3. Build the Docker image
 
 ```shell
-# docker build -t crynux-node:dev -f .\build\Dockerfile . 
+# docker build -t crynux-node:dev -f .\build\Dockerfile .
 ```
 
 4. Start the container
@@ -280,7 +280,7 @@ Please refer to the [README](https://github.com/crynux-network/crynux-node/blob/
 # pip install -r requirements_docker.txt && pip install .[test]
 ```
 
-4. Run tests 
+4. Run tests
 
 ```shell
 # pytest tests
