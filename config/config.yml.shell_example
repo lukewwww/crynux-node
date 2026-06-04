@@ -9,7 +9,7 @@ ethereum:
   # The JSON RPC endpoint of the Blockchain node
   # Here we use the private chain for the Hydrogen Network
   provider: "https://json-rpc.base.crynux.io"
-  network: "base"
+  network: "crynux-on-base"
   chain_id: 18896214
 
   # The Blockchain params
