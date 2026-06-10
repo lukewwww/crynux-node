@@ -19,6 +19,13 @@ EventType = Literal[
     "TaskEndGroupSuccess",
     "NodeKickedOut",
     "NodeSlashed",
+    "NodeJoin",
+    "NodeQuit",
+    "NodeStaking",
+    "DelegatorStaking",
+    "DelegatorUnstaking",
+    "NodeDelegatorShareChanged",
+    "DelegatedStakingSlashed",
 ]
 
 
@@ -143,6 +150,16 @@ class NodeDelegatorShareChanged(Event):
     )
     node_address: AddressFromStr
     share: int
+    network: str
+
+
+class DelegatedStakingSlashed(Event):
+    type: EventType = Field(
+        default="DelegatedStakingSlashed", init_var=False, frozen=True
+    )
+    delegator_address: AddressFromStr
+    node_address: AddressFromStr
+    amount: str
     network: str
 
 
