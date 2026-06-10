@@ -27,6 +27,7 @@ const systemStore = useSystemStore()
 
 const showSuccessAlert = ref(false)
 const isSaving = ref(false)
+const hasLoadedAccountBalance = ref(false)
 
 const isStakingAmountValid = computed(() => {
     if (typeof settingsInModal.staking_amount !== 'number') {
@@ -561,6 +562,7 @@ const updateAccountInfo = async (ticket) => {
             total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0)
         }
         Object.assign(accountStatus, normalized)
+        hasLoadedAccountBalance.value = true
     } else {
         logger.debug('[' + ticket + '] Ticket is old. Discard the response')
     }
@@ -804,6 +806,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
+          hasLoadedAccountBalance &&
           !startEnough())
         "
             >
@@ -824,6 +827,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           (isNodeRunning || isNodePaused) &&
           accountStatus.address !== '' &&
+          hasLoadedAccountBalance &&
           !gasEnough()
         "
             ></a-alert>
