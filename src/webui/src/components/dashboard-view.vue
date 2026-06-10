@@ -27,6 +27,7 @@ const systemStore = useSystemStore()
 
 const showSuccessAlert = ref(false)
 const isSaving = ref(false)
+const hasLoadedAccountBalance = ref(false)
 
 const isStakingAmountValid = computed(() => {
     if (typeof settingsInModal.staking_amount !== 'number') {
@@ -277,7 +278,7 @@ const startEnough = () => {
     if (!accountStatus.address) return false
     if (typeof settings.staking_amount !== 'number') return false
     const required = BigInt(settings.staking_amount) * 1000000000000000000n + GAS_FEE_MIN_WEI
-    return accountStatus.balance >= required
+    return accountStatus.balance + accountStatus.staking >= required
 }
 
 const requiredStartTotalCNX = computed(() => {
@@ -561,6 +562,7 @@ const updateAccountInfo = async (ticket) => {
             total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0)
         }
         Object.assign(accountStatus, normalized)
+        hasLoadedAccountBalance.value = true
     } else {
         logger.debug('[' + ticket + '] Ticket is old. Discard the response')
     }
@@ -804,6 +806,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
+          hasLoadedAccountBalance &&
           !startEnough())
         "
             >
@@ -824,6 +827,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           (isNodeRunning || isNodePaused) &&
           accountStatus.address !== '' &&
+          hasLoadedAccountBalance &&
           !gasEnough()
         "
             ></a-alert>
@@ -1431,9 +1435,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
-                         alt="Base logo"/>
-                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img :class="`${config.network_logo}-logo`" :src="`/${config.network_logo}.png`" width="120"
+                         alt="Blockchain logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1482,9 +1485,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
-                         alt="Base logo"/>
-                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img :class="`${config.network_logo}-logo`" :src="`/${config.network_logo}.png`" width="120"
+                         alt="Network logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1528,9 +1530,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
-                         alt="Base logo"/>
-                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img :class="`${config.network_logo}-logo`" :src="`/${config.network_logo}.png`" width="120"
+                         alt="Network logo"/>
                 </div>
             </a-col>
         </a-row>
@@ -1584,9 +1585,8 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 <div class="footer-logo" style="float: left;margin-top: 24px">
                     <img src="./logo-full-white.png" width="140" alt="Crynux logo"/>
                     <div class="network-on">ON</div>
-                    <img v-if="config.network === 'base'" class="base-logo" src="/base.png" width="120"
-                         alt="Base logo"/>
-                    <img v-if="config.network === 'near'" class="near-logo" src="/near.png" width="120" alt="Near logo"/>
+                    <img :class="`${config.network_logo}-logo`" :src="`/${config.network_logo}.png`" width="120"
+                         alt="Network logo"/>
                 </div>
             </a-col>
         </a-row>
