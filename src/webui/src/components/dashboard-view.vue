@@ -28,6 +28,7 @@ const systemStore = useSystemStore()
 const showSuccessAlert = ref(false)
 const isSaving = ref(false)
 const hasLoadedAccountBalance = ref(false)
+const hasLoadedNodeStatus = ref(false)
 
 const isStakingAmountValid = computed(() => {
     if (typeof settingsInModal.staking_amount !== 'number') {
@@ -141,7 +142,8 @@ const nodeStatus = reactive({
     init_message: '',
     message: '',
     tx_status: '',
-    tx_error: ''
+    tx_error: '',
+    slashed: false
 })
 
 const accountStatus = reactive({
@@ -153,7 +155,8 @@ const accountStatus = reactive({
     delegator_share: 0,
     delegator_num: 0,
     today_delegator_earnings: 0,
-    total_delegator_earnings: 0
+    total_delegator_earnings: 0,
+    is_loaded: false
 })
 
 const taskStatus = reactive({
@@ -245,6 +248,7 @@ const isNodeJoined = computed(() => {
 })
 
 const GAS_FEE_MIN_WEI = BigInt(config.gas_fee_min_wei)
+const hasLoadedWalletFundingState = computed(() => hasLoadedAccountBalance.value && hasLoadedNodeStatus.value)
 
 const toEtherValue = (value) => {
     try {
@@ -559,10 +563,11 @@ const updateAccountInfo = async (ticket) => {
             delegator_share: parseInt(accountResp.delegator_share ?? 0),
             delegator_num: parseInt(accountResp.delegator_num ?? 0),
             today_delegator_earnings: BigInt(accountResp.today_delegator_earnings ?? 0),
-            total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0)
+            total_delegator_earnings: BigInt(accountResp.total_delegator_earnings ?? 0),
+            is_loaded: Boolean(accountResp.is_loaded)
         }
         Object.assign(accountStatus, normalized)
-        hasLoadedAccountBalance.value = true
+        hasLoadedAccountBalance.value = normalized.is_loaded
     } else {
         logger.debug('[' + ticket + '] Ticket is old. Discard the response')
     }
@@ -575,6 +580,7 @@ const updateNetworkInfo = async (ticket) => {
 
     if (ticket === uiUpdateCurrentTicket) {
         Object.assign(nodeStatus, nodeResp)
+        hasLoadedNodeStatus.value = true
     }
 }
 
@@ -771,7 +777,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 type="error"
                 message="Node was slashed"
                 class="top-alert"
-                v-if="nodeStatus.status === nodeAPI.NODE_STATUS_SLASHED"
+                v-if="nodeStatus.slashed"
             >
                 <template #action>
                     <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord</a-button>
@@ -806,7 +812,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
-          hasLoadedAccountBalance &&
+          hasLoadedWalletFundingState &&
           !startEnough())
         "
             >
@@ -827,7 +833,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                 v-if="
           (isNodeRunning || isNodePaused) &&
           accountStatus.address !== '' &&
-          hasLoadedAccountBalance &&
+          hasLoadedWalletFundingState &&
           !gasEnough()
         "
             ></a-alert>

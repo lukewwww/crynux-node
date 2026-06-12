@@ -87,6 +87,7 @@ class NodeState(BaseModel):
     status: NodeStatus
     message: str = ""
     init_message: str = ""
+    slashed: bool = False
 
 
 class NodeScoreState(BaseModel):

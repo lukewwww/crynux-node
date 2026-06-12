@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 import platform
+import signal
 import sys
 import shutil
 from logging.handlers import RotatingFileHandler
@@ -228,11 +229,16 @@ def main():
         should_exit = False
         exit_event = Event()
 
-        def set_should_exit():
+        def set_should_exit(*_args):
             nonlocal should_exit
 
             should_exit = True
             _logger.debug("set should exit")
+
+        signal.signal(signal.SIGINT, set_should_exit)
+        signal.signal(signal.SIGTERM, set_should_exit)
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, set_should_exit)
 
         async def check_should_exit():
             while not should_exit:

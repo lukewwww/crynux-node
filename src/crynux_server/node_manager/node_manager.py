@@ -498,7 +498,9 @@ class NodeManager(object):
             if address == account:
                 _logger.info("Node is slashed")
                 await self.state_cache.set_node_state(
-                    status=models.NodeStatus.Slashed, message="Node is slashed"
+                    status=models.NodeStatus.Slashed,
+                    message="Node is slashed",
+                    slashed=True,
                 )
 
         self._watcher.add_event_filter("NodeSlashed", callback=_node_slashed)

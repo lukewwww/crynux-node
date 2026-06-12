@@ -21,6 +21,7 @@ class AccountInfo(BaseModel):
     delegator_num: int = 0
     today_delegator_earnings: str = "0"
     total_delegator_earnings: str = "0"
+    is_loaded: bool = False
 
 
 _account_info = AccountInfo()
@@ -83,6 +84,7 @@ async def update_account_info(interval: int):
                 tg.start_soon(_update_balance)
                 tg.start_soon(_update_staking)
                 tg.start_soon(_update_node_info)
+            _account_info.is_loaded = True
         except AssertionError:
             pass
         except get_cancelled_exc_class():

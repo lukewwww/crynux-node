@@ -20,6 +20,7 @@ class State(BaseModel):
     tx_status: models.TxStatus
     tx_error: str
     init_message: str = ""
+    slashed: bool = False
 
 
 @router.get("", response_model=State)
@@ -32,6 +33,7 @@ async def get_node_state(*, state_cache: ManagerStateCacheDep) -> State:
         tx_status=tx_state.status,
         tx_error=tx_state.error,
         init_message=node_state.init_message,
+        slashed=node_state.slashed,
     )
 
 
