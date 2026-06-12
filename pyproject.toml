@@ -43,7 +43,7 @@ test = ["pytest~=7.4.0", "Pillow", "web3[tester]"]
 app = [
     "pyinstaller~=6.5.0",
     "PyQt6-WebEngine~=6.6.0",
-    "qasync~=0.27.1",
+    "qasync~=0.28.0",
 ]
 all = [
     "crynux-node[app,test]"
