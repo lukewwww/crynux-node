@@ -1,5 +1,4 @@
 import logging
-import re
 import ssl
 import warnings
 from abc import ABC, abstractmethod
@@ -18,7 +17,6 @@ from web3 import AsyncHTTPProvider, AsyncWeb3, WebsocketProviderV2
 from web3.middleware.signing import \
     async_construct_sign_and_send_raw_middleware
 from web3.providers.async_base import AsyncBaseProvider
-from web3.types import Nonce
 from websockets import ConnectionClosed
 
 from .middleware import async_construct_rate_limit_middleware
@@ -33,9 +31,6 @@ class ProviderType(IntEnum):
 
 
 _W3PoolCallback = Callable[[int], Awaitable[None]]
-
-_invalid_nonce_pattern = re.compile(r"nonce", re.IGNORECASE)
-
 
 class W3Guard(ABC):
     def __init__(
@@ -170,7 +165,6 @@ class W3Pool(object):
 
         self._condition = Condition()
         self._nonce_lock = Lock()
-        self._nonce: Optional[Nonce] = None
 
         self._next_id = 1
         self._guards: Dict[int, W3Guard] = {}
@@ -290,18 +284,8 @@ class W3Pool(object):
         assert not self._closed, "w3 pool is closed"
 
         async with self._nonce_lock:
-            if self._nonce is None:
-                self._nonce = await w3.eth.get_transaction_count(
-                    self.account, "pending"
-                )
-            try:
-                yield self._nonce
-                self._nonce = Nonce(self._nonce + 1)
-            except Exception as e:
-                m = _invalid_nonce_pattern.search(str(e))
-                if m is not None:
-                    self._nonce = None
-                raise e
+            nonce = await w3.eth.get_transaction_count(self.account, "pending")
+            yield nonce
 
     async def close(self):
         if not self._closed:

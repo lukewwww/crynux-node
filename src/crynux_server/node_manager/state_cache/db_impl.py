@@ -20,6 +20,7 @@ class DbNodeStateCache(StateCache[NodeState]):
                     status=state.status,
                     message=state.message,
                     init_message=state.init_message,
+                    slashed=state.slashed,
                 )
 
     async def set(self, state: NodeState):
@@ -31,12 +32,14 @@ class DbNodeStateCache(StateCache[NodeState]):
                     status=state.status,
                     message=state.message,
                     init_message=state.init_message,
+                    slashed=state.slashed,
                 )
                 sess.add(db_state)
             else:
                 db_state.status = state.status
                 db_state.message = state.message
                 db_state.init_message = state.init_message
+                db_state.slashed = state.slashed
             await sess.commit()
 
 

@@ -14,6 +14,7 @@ class NodeState(Base, BaseMixin):
     )
     message: Mapped[str] = mapped_column(default="", index=False, nullable=False)
     init_message: Mapped[str] = mapped_column(default="", index=False, nullable=False)
+    slashed: Mapped[bool] = mapped_column(default=False, index=False, nullable=False)
 
 
 class NodeScoreState(Base, BaseMixin):

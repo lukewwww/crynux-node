@@ -14,6 +14,7 @@ async def test_get_account_empty(client: TestClient):
     resp_data = resp.json()
     assert resp_data["address"] == ""
     assert resp_data["balance"] == 0
+    assert not resp_data["is_loaded"]
 
 
 async def test_create_account(running_client: TestClient):
@@ -82,3 +83,4 @@ async def test_get_account(running_client: TestClient, accounts, privkeys):
     resp_data = resp.json()
     assert resp_data["address"] == accounts[0]
     assert resp_data["balance"] > 0
+    assert resp_data["is_loaded"]

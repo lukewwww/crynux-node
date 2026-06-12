@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import subprocess
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from typing import Dict, Optional
 
 import psutil
@@ -39,6 +39,38 @@ class WorkerManager(object):
     @property
     def version(self):
         return self._version
+
+    def _kill_process_tree(self, pid: int):
+        try:
+            process = psutil.Process(pid)
+            for proc in process.children(recursive=True):
+                with suppress(psutil.NoSuchProcess):
+                    proc.kill()
+            process.kill()
+        except psutil.NoSuchProcess:
+            pass
+
+    def _remove_worker_pid_file(self, worker_pid_file: str):
+        with suppress(FileNotFoundError):
+            os.remove(worker_pid_file)
+
+    def _clear_old_worker_process(self, worker_pid_file: str):
+        if not os.path.exists(worker_pid_file):
+            return
+
+        with open(worker_pid_file, mode="r", encoding="utf-8") as f:
+            pid = int(f.read().strip())
+
+        try:
+            process = psutil.Process(pid)
+            cmdline = process.cmdline()
+        except psutil.NoSuchProcess:
+            self._remove_worker_pid_file(worker_pid_file)
+            return
+
+        if "crynux_worker_process" in " ".join(cmdline):
+            self._kill_process_tree(pid)
+            self._remove_worker_pid_file(worker_pid_file)
 
     @contextmanager
     def start(self):
@@ -92,18 +124,7 @@ class WorkerManager(object):
         log_config = {"dir": self.config.log.dir, "level": self.config.log.level}
         envs["cw_log"] = json.dumps(log_config)
 
-        # kill the old worker process if it is still alive
-        if os.path.exists(worker_pid_file):
-            with open(worker_pid_file, mode="r", encoding="utf-8") as f:
-                pid = int(f.read().strip())
-            if psutil.pid_exists(pid):
-                process = psutil.Process(pid)
-                cmdline = process.cmdline()
-                # check if the process is the worker process
-                if "crynux_worker_process" in " ".join(cmdline):
-                    for proc in process.children(recursive=True):
-                        proc.kill()
-                    process.kill()
+        self._clear_old_worker_process(worker_pid_file)
 
         p = subprocess.Popen(args=args, env=envs)
         self._worker_process = p
@@ -117,10 +138,7 @@ class WorkerManager(object):
             yield
         finally:
             if self._worker_process is not None:
-                process = psutil.Process(self._worker_process.pid)
-                for proc in process.children(recursive=True):
-                    proc.kill()
-                process.kill()
+                self._kill_process_tree(self._worker_process.pid)
                 self._worker_process = None
 
     def is_worker_process_alive(self) -> bool:

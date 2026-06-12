@@ -35,9 +35,22 @@ class ManagerStateCache(object):
     async def get_tx_state(self) -> models.TxState:
         return await self.tx_state_cache.get()
 
-    async def set_node_state(self, status: models.NodeStatus, message: str = "", init_message: str = ""):
+    async def set_node_state(
+        self,
+        status: models.NodeStatus,
+        message: str = "",
+        init_message: str = "",
+        slashed: Optional[bool] = None,
+    ):
+        if slashed is None:
+            slashed = (await self.get_node_state()).slashed
         return await self.node_state_cache.set(
-            models.NodeState(status=status, message=message, init_message=init_message)
+            models.NodeState(
+                status=status,
+                message=message,
+                init_message=init_message,
+                slashed=slashed,
+            )
         )
 
     async def set_tx_state(self, status: models.TxStatus, error: str = ""):

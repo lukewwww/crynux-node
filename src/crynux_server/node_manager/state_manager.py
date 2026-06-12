@@ -55,7 +55,7 @@ class NodeStateManager(object):
         assert (
             local_status == models.NodeStatus.Running
         ), "Node status on chain is not running."
-        await self.state_cache.set_node_state(local_status)
+        await self.state_cache.set_node_state(local_status, slashed=False)
         await self.state_cache.set_tx_state(models.TxStatus.Success)
 
     async def _wait_for_stop(self):
