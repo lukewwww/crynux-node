@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   prepare-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
        - run: echo "null"
     outputs:

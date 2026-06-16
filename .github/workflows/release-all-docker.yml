@@ -14,7 +14,7 @@ env:
 jobs:
   build-the-docker-image:
     name: Build the release Docker image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
       packages: write
@@ -28,6 +28,7 @@ jobs:
             remove-android: 'true'
             remove-haskell: 'true'
             remove-codeql: 'true'
+            remove-docker-images: 'true'
 
         - name: Checkout repository
           uses: actions/checkout@v3
@@ -40,6 +41,29 @@ jobs:
             set -e
             chmod +x build/set-config-files.sh
             ./build/set-config-files.sh ${{ inputs.blockchain }}
+
+        - name: Configure Docker storage
+          shell: bash
+          run: |
+            set -eux
+            sudo systemctl stop docker
+            sudo rm -rf /var/lib/docker
+            sudo mkdir -p "${GITHUB_WORKSPACE}/.docker-data"
+            sudo tee /etc/docker/daemon.json >/dev/null <<EOF
+            {
+              "data-root": "${GITHUB_WORKSPACE}/.docker-data"
+            }
+            EOF
+            sudo systemctl start docker
+            docker info
+
+        - name: Show disk usage before Docker build
+          shell: bash
+          run: |
+            set -eux
+            df -h
+            docker system df || true
+            sudo du -hxd1 / /mnt "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/.docker-data" 2>/dev/null | sort -h || true
 
         - name: Log in to the Container registry
           uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
@@ -67,3 +91,12 @@ jobs:
             file: build/docker/Dockerfile
             tags: ${{ steps.meta.outputs.tags }}
             labels: ${{ steps.meta.outputs.labels }}
+
+        - name: Show disk usage after Docker build
+          if: always()
+          shell: bash
+          run: |
+            set -eux
+            df -h
+            docker system df || true
+            sudo du -hxd1 / /mnt "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/.docker-data" 2>/dev/null | sort -h || true
