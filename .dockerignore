@@ -17,3 +17,4 @@ config.json
 dist/*
 tmp/
 worker/
+.docker-data/
