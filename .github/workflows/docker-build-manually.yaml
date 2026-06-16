@@ -11,6 +11,9 @@ on:
         description: 'Blockchain'
         required: true
         default: 'base'
+      tag:
+        description: 'Release version to build from v-prefixed git tag (if not specified, use selected ref and git hash)'
+        required: false
 
 env:
   REGISTRY: ghcr.io
@@ -24,6 +27,19 @@ jobs:
       packages: write
 
     steps:
+      - name: Resolve checkout ref
+        id: ref
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_TAG}" ]]; then
+            echo "checkout_ref=v${INPUT_TAG#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "checkout_ref=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
@@ -37,6 +53,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
+          ref: ${{ steps.ref.outputs.checkout_ref }}
           submodules: recursive
 
       - name: Set the config files
@@ -74,19 +91,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name:
+      - name: Prepare Docker tags
         id: vars
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          BLOCKCHAIN: ${{ inputs.blockchain }}
         run: |
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          SHA_SHORT="$(git rev-parse --short HEAD)"
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            suffix=-${{ steps.vars.outputs.sha_short }}-${{ inputs.blockchain }},latest=false
+          if [[ -n "${INPUT_TAG}" ]]; then
+            IMAGE_TAG="${INPUT_TAG#v}"
+          else
+            IMAGE_TAG="${SHA_SHORT}"
+          fi
+
+          echo "sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}-${BLOCKCHAIN}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
@@ -94,8 +119,7 @@ jobs:
           context: .
           push: true
           file: build/docker/Dockerfile
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.vars.outputs.tags }}
 
       - name: Show disk usage after Docker build
         if: always()
