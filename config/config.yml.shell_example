@@ -18,10 +18,10 @@ ethereum:
 
   # The deployed addresses of the smart contracts
   contract:
-    benefit_address: "0xa4AC846337794C93d68D387Be77663e32AD415bb"
-    credits: "0xb592ee9c75873E13501e2eF1e2c31604C056f197"
-    node_staking: "0xf76C3f19c8976d0Bc49d48718669b99747b1837e"
-    delegated_staking: "0x4b0946BB12474332D865AfAc5F77554b503C5570"
+    benefit_address: "0x31609b6531399561c2B65b8673a17FE2575c1654"
+    credits: "0x2F44194dB165B773891556F8B27384fE87a9AeFd"
+    node_staking: "0xF7b23E19bf1CD63fa640eD3c6bb51eedF07caadE"
+    delegated_staking: "0x91CaDAc285FaE7d652eEDC1863ed16D73288AB0D"
 
 # The database used to store the local state data
 # The data will not be large. A sqlite file is more than enough
@@ -47,12 +47,10 @@ task_config:
   # will be downloaded during the task execution
   preloaded_models:
     sd_base:
-      - id: "crynux-network/stable-diffusion-v1-5"
-        variant: "fp16"
       - id: "crynux-network/sdxl-turbo"
         variant: "fp16"
     gpt_base:
-      - id: "Qwen/Qwen2.5-7B"
+      - id: "Qwen/Qwen3.5-9B"
     controlnet: []
     lora: []
 
