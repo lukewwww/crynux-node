@@ -87,7 +87,6 @@ jobs:
     needs:
       - build-the-windows-binaries
       - build-the-mac-dmgs
-      - build-the-docker-images
     permissions:
         contents: write
     steps:
