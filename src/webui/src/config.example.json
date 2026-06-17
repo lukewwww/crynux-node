@@ -7,6 +7,5 @@
     "block_explorer": "",
     "network": "crynux-on-base",
     "network_logo": "base",
-    "min_staking_amount": 10000,
     "gas_fee_min_wei": "10000000000000000"
 }

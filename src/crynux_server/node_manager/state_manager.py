@@ -202,14 +202,16 @@ class NodeStateManager(object):
         except get_cancelled_exc_class():
             raise
         except (RelayError, AssertionError, ValueError, TxRevertedError) as e:
-            _logger.error(f"tx error {str(e)}")
-            _logger.exception(e)
+            _logger.exception(
+                "tx error: %s: %s", type(e).__name__, str(e) or repr(e)
+            )
             with fail_after(5, shield=True):
                 await self.state_cache.set_tx_state(models.TxStatus.Error, str(e))
             raise
         except Exception as e:
-            _logger.exception(e)
-            _logger.error("unknown tx error")
+            _logger.exception(
+                "unknown tx error: %s: %s", type(e).__name__, str(e) or repr(e)
+            )
             raise
 
     async def try_start(
@@ -221,9 +223,11 @@ class NodeStateManager(object):
         option: "Optional[TxOption]" = None,
     ):
         _logger.info("Trying to join the network automatically...")
+        last_logged_start_status: Optional[models.NodeStatus] = None
 
         @retry(wait=wait_fixed(1), stop=stop_never, reraise=True)
         async def _start():
+            nonlocal last_logged_start_status
             status = await self._get_node_status()
             if status in [
                 models.NodeStatus.Running,
@@ -235,7 +239,9 @@ class NodeStateManager(object):
                 return
 
             elif status == models.NodeStatus.Stopped:
-                _logger.info("Node is stopped, trying to join the network...")
+                if last_logged_start_status != status:
+                    _logger.info("Node is stopped, trying to join the network...")
+                    last_logged_start_status = status
                 async with self._tx_session(
                     expected_node_status=models.NodeStatus.Stopped
                 ):
@@ -279,7 +285,9 @@ class NodeStateManager(object):
                     # it's the same in try_stop method
                     await self._wait_for_running()
             elif status == models.NodeStatus.Paused:
-                _logger.info("Node is paused, trying to resume...")
+                if last_logged_start_status != status:
+                    _logger.info("Node is paused, trying to resume...")
+                    last_logged_start_status = status
                 async with self._tx_session(
                     expected_node_status=models.NodeStatus.Paused
                 ):

@@ -43,6 +43,8 @@ task_config:
     sd_base:
       - id: "crynux-network/sdxl-turbo"
         variant: "fp16"
+      - id: "crynux-network/stable-diffusion-v1-5"
+        variant: "fp16"
     gpt_base:
       - id: "Qwen/Qwen2.5-7B"
     controlnet: []
