@@ -29,6 +29,25 @@ const showSuccessAlert = ref(false)
 const isSaving = ref(false)
 const hasLoadedAccountBalance = ref(false)
 const hasLoadedNodeStatus = ref(false)
+const minStakingAmountWei = ref(null)
+const minStakingAmountLoadError = ref('')
+const ETHER_WEI = 1000000000000000000n
+
+const minStakingAmountCNX = computed(() => {
+    if (minStakingAmountWei.value === null) return null
+    try {
+        return Number((BigInt(minStakingAmountWei.value) + ETHER_WEI - 1n) / ETHER_WEI)
+    } catch (e) {
+        return null
+    }
+})
+
+const stakingAmountHelp = computed(() => {
+    if (minStakingAmountLoadError.value) return minStakingAmountLoadError.value
+    if (minStakingAmountCNX.value === null) return 'Loading minimum staking amount from chain.'
+    if (isStakingAmountValid.value) return `Minimum staking amount is ${minStakingAmountCNX.value} CNX.`
+    return `Staking amount must be an integer and cannot be less than ${minStakingAmountCNX.value}.`
+})
 
 const isStakingAmountValid = computed(() => {
     if (typeof settingsInModal.staking_amount !== 'number') {
@@ -37,7 +56,10 @@ const isStakingAmountValid = computed(() => {
     if (!Number.isInteger(settingsInModal.staking_amount)) {
         return false
     }
-    return settingsInModal.staking_amount >= config.min_staking_amount
+    if (minStakingAmountCNX.value === null) {
+        return false
+    }
+    return settingsInModal.staking_amount >= minStakingAmountCNX.value
 })
 
 // Whether each field changed in Settings modal
@@ -48,7 +70,7 @@ const isDelegatorShareChanged = computed(() => settingsInModal.delegator_share !
 const stakingAmountDesiredWei = computed(() => {
     if (typeof settingsInModal.staking_amount !== 'number') return 0n
     try {
-        return BigInt(settingsInModal.staking_amount) * 1000000000000000000n
+        return BigInt(settingsInModal.staking_amount) * ETHER_WEI
     } catch (e) {
         return 0n
     }
@@ -167,11 +189,11 @@ const taskStatus = reactive({
 
 
 const settings = reactive({
-    staking_amount: config.min_staking_amount
+    staking_amount: 0
 })
 
 const settingsInModal = reactive({
-    staking_amount: config.min_staking_amount,
+    staking_amount: 0,
     delegator_share: 0
 })
 
@@ -254,7 +276,7 @@ const toEtherValue = (value) => {
     try {
         const big = BigInt(value)
         if (big === 0n) return '0'
-        const decimals = (big / 1000000000000000000n).toString()
+        const decimals = (big / ETHER_WEI).toString()
         let fractions = ((big / 100000000000000n) % 10000n).toString()
         while (fractions.length < 4) {
             fractions = '0' + fractions
@@ -281,13 +303,13 @@ const gasEnough = () => {
 const startEnough = () => {
     if (!accountStatus.address) return false
     if (typeof settings.staking_amount !== 'number') return false
-    const required = BigInt(settings.staking_amount) * 1000000000000000000n + GAS_FEE_MIN_WEI
+    const required = BigInt(settings.staking_amount) * ETHER_WEI + GAS_FEE_MIN_WEI
     return accountStatus.balance + accountStatus.staking >= required
 }
 
 const requiredStartTotalCNX = computed(() => {
     if (typeof settings.staking_amount !== 'number') return '0'
-    const stakingWei = BigInt(settings.staking_amount) * 1000000000000000000n
+    const stakingWei = BigInt(settings.staking_amount) * ETHER_WEI
     const totalWei = stakingWei + GAS_FEE_MIN_WEI
     return toEtherValue(totalWei)
 })
@@ -410,6 +432,7 @@ watch(() => systemStore.showSettingsModal, (newValue) => {
         // Delegator share comes from account info, not settings API.
         settingsInModal.delegator_share = accountStatus.delegator_share
         showSuccessAlert.value = false
+        updateMinStakingAmount()
     }
 })
 
@@ -460,6 +483,19 @@ const handleSettingsSave = async () => {
 
 const handleSettingsCancel = () => {
     systemStore.showSettingsModal = false
+}
+
+async function updateMinStakingAmount() {
+    minStakingAmountWei.value = null
+    minStakingAmountLoadError.value = ''
+    try {
+        const minStakingAmountResp = await settingsAPI.getMinStakingAmount()
+        minStakingAmountWei.value = minStakingAmountResp.min_staking_amount
+    } catch (e) {
+        minStakingAmountLoadError.value = 'Cannot load the minimum staking amount from chain. Please try again later.'
+        logger.error('Updating minimum staking amount failed:')
+        logger.error(e)
+    }
 }
 
 
@@ -1657,7 +1693,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
             <a-form-item
                 label="Staking Amount"
                 :validate-status="isStakingAmountValid ? '' : 'error'"
-                :help="isStakingAmountValid ? `Minimum staking amount is ${config.min_staking_amount} CNX.` : `Staking amount must be an integer and cannot be less than ${config.min_staking_amount}.`"
+                :help="stakingAmountHelp"
             >
                 <a-input-number v-model:value="settingsInModal.staking_amount" prefix="CNX" style="width: 100%"/>
             </a-form-item>

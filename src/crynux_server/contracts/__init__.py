@@ -221,6 +221,12 @@ class Contracts(object):
             current_staking_amount = current_staking_info.staked_balance + current_staking_info.staked_credits
             if amount == current_staking_amount:
                 return
+
+            min_staking_amount = await self.node_staking_contract.get_min_stake_amount(w3=w3)
+            if amount < min_staking_amount:
+                raise ValueError(
+                    f"Staking amount is below the chain minimum staking amount ({min_staking_amount} wei)"
+                )
             
             if amount > current_staking_amount:
                 diff = amount - current_staking_amount

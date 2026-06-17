@@ -13,6 +13,10 @@ class SettingsAPI extends BaseAPI {
         return this.getHttpClient().get('/settings')
     }
 
+    getMinStakingAmount() {
+        return this.getHttpClient().get('/settings/min-staking-amount')
+    }
+
     updateSettings(settings) {
         return this.getHttpClient().post('/settings', settings)
     }
