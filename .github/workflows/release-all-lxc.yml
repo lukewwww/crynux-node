@@ -29,6 +29,7 @@ jobs:
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
+          remove-docker-images: 'true'
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -63,21 +64,45 @@ jobs:
         run: |
           sudo snap install distrobuilder --classic
 
+      - name: Configure LXC build storage
+        run: |
+          set -eux
+          mkdir -p "${GITHUB_WORKSPACE}/.lxc-build/cache"
+          mkdir -p "${GITHUB_WORKSPACE}/.lxc-build/sources"
+          mkdir -p "${GITHUB_WORKSPACE}/.lxc-build/output"
+
+      - name: Show disk usage before LXC build
+        run: |
+          set -eux
+          df -h
+          sudo du -hxd1 / /mnt "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/.lxc-build" 2>/dev/null | sort -h || true
+
       - name: Build Incus image with distrobuilder
         run: |
-          sudo -E distrobuilder build-incus build/lxc/crynux-node.lxc.yaml -o image.architecture=$(dpkg --print-architecture)
+          sudo -E distrobuilder build-incus build/lxc/crynux-node.lxc.yaml "${GITHUB_WORKSPACE}/.lxc-build/output" \
+            --cache-dir "${GITHUB_WORKSPACE}/.lxc-build/cache" \
+            --sources-dir "${GITHUB_WORKSPACE}/.lxc-build/sources" \
+            --keep-sources=false \
+            -o image.architecture=$(dpkg --print-architecture)
 
       - name: List generated files
         run: |
-          ls -la
-          find . -name "incus.tar.xz" -o -name "rootfs.squashfs" | head -10
+          ls -la "${GITHUB_WORKSPACE}/.lxc-build/output"
+          find "${GITHUB_WORKSPACE}/.lxc-build/output" -name "incus.tar.xz" -o -name "rootfs.squashfs" | head -10
 
       - name: Rename artifacts with version
         run: |
           FULL_VERSION="${{ steps.update-yaml.outputs.full_version }}"
-          sudo mv incus.tar.xz "incus-${FULL_VERSION}.tar.xz"
-          sudo mv rootfs.squashfs "rootfs-${FULL_VERSION}.squashfs"
+          sudo mv "${GITHUB_WORKSPACE}/.lxc-build/output/incus.tar.xz" "incus-${FULL_VERSION}.tar.xz"
+          sudo mv "${GITHUB_WORKSPACE}/.lxc-build/output/rootfs.squashfs" "rootfs-${FULL_VERSION}.squashfs"
           ls -la incus-*.tar.xz rootfs-*.squashfs
+
+      - name: Show disk usage after LXC build
+        if: always()
+        run: |
+          set -eux
+          df -h
+          sudo du -hxd1 / /mnt "${GITHUB_WORKSPACE}" "${GITHUB_WORKSPACE}/.lxc-build" 2>/dev/null | sort -h || true
 
       - name: Change ownership of artifacts
         run: |
