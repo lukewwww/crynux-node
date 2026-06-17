@@ -99,8 +99,8 @@ const copyText = async (text) => {
 
     <a-result
         v-if="step === 'discord'"
-        title="Get the test CNX tokens from Discord"
-        sub-title="Test CNX tokens are required to start the node. Join the Discord Server of Crynux to get the tokens for free."
+        title="Learn how to get CNX tokens from Discord"
+        sub-title="CNX tokens are required to start the node. Join the Crynux Discord to learn more about acquiring CNX tokens."
     >
     <template #icon>
       <smile-twoTone />

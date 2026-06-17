@@ -98,7 +98,7 @@ defineExpose({ showModal })
     :closable="props.accountStatus.address !== ''"
   >
     <a-alert
-      message="An Ethereum wallet with enough test tokens is required."
+      message="An Ethereum wallet with enough CNX tokens is required."
       type="info"
       style="margin-top: 16px"
       v-if="props.accountStatus.address === '' && apiError === null"
@@ -107,7 +107,7 @@ defineExpose({ showModal })
         <a-button size="small" type="primary" :href="config.discord_link" target="_blank">Crynux Discord</a-button>
       </template>
       <template #description>
-        Get the test tokens for free from: <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}</a-typography-link>
+        Join the Crynux Discord to learn more about acquiring CNX tokens: <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}</a-typography-link>
       </template>
     </a-alert>
 

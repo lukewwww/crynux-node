@@ -125,7 +125,7 @@ const taskAPI = new TaskAPI()
 const settingsAPI = new SettingsAPI()
 
 const accountEditor = ref(null)
-const showTestTokenModal = ref(false)
+const showCnxTokenModal = ref(false)
 const showWithdrawModal = ref(false)
 
 const topRow = ref(null)
@@ -857,7 +857,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                     </a-button>
                 </template>
                 <template #description>
-                    Get test CNX for free:
+                    Join the Crynux Discord to learn more about acquiring CNX tokens:
                     <a-typography-link :href="config.discord_link" target="_blank">{{ config.discord_link }}
                     </a-typography-link>
                 </template>
@@ -1635,12 +1635,12 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
     </div>
 
     <a-modal
-        v-model:visible="showTestTokenModal"
-        title="Get Test CNX Tokens"
+        v-model:visible="showCnxTokenModal"
+        title="Get CNX Tokens"
         :footer="null"
-        @cancel="showTestTokenModal = false"
+        @cancel="showCnxTokenModal = false"
     >
-        <p>Please join Crynux Discord to get test CNX for free:</p>
+        <p>Join the Crynux Discord to learn more about acquiring CNX tokens.</p>
         <a-button type="primary" :href="config.discord_link" target="_blank">
             Join Crynux Discord
         </a-button>
