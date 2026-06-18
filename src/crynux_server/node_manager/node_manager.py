@@ -13,6 +13,7 @@ from anyio import (
     get_cancelled_exc_class,
     move_on_after,
     sleep,
+    to_thread,
 )
 from anyio.abc import TaskGroup, TaskStatus
 from tenacity import (
@@ -25,7 +26,12 @@ from tenacity import (
 from web3 import Web3
 
 from crynux_server import models
-from crynux_server.config import Config, wait_privkey, get_staking_amount
+from crynux_server.config import (
+    Config,
+    ensure_staking_amount,
+    get_staking_amount,
+    wait_privkey,
+)
 from crynux_server.contracts import Contracts, set_contracts
 from crynux_server.relay import Relay, WebRelay, set_relay
 from crynux_server.task import (
@@ -242,6 +248,13 @@ class NodeManager(object):
                     delegated_staking_contract_address=self.config.ethereum.contract.delegated_staking,
                     node_staking_contract_address=self.config.ethereum.contract.node_staking,
                 )
+                min_staking_amount = (
+                    await self._contracts.node_staking_contract.get_min_stake_amount()
+                )
+                staking_amount = await to_thread.run_sync(
+                    ensure_staking_amount, min_staking_amount
+                )
+                _logger.info("Staking amount is %s CNX.", staking_amount)
             if self._relay is None:
                 self._relay = _make_relay(self._privkey, self.config.relay_url)
 

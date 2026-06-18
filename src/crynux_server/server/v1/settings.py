@@ -1,17 +1,26 @@
+import logging
+from typing import Optional
+
 from anyio import to_thread
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from crynux_server.config import get_staking_amount, set_staking_amount
+from crynux_server.config import (
+    ensure_staking_amount,
+    get_staking_amount,
+    set_staking_amount,
+)
+from crynux_server.contracts import get_contracts
 
 from ..depends import ContractsDep
 from .utils import CommonResponse
 
 router = APIRouter(prefix="/settings")
+_logger = logging.getLogger(__name__)
 
 
 class SettingsResponse(BaseModel):
-    staking_amount: int
+    staking_amount: Optional[int]
 
 
 class MinStakingAmountResponse(BaseModel):
@@ -20,7 +29,22 @@ class MinStakingAmountResponse(BaseModel):
 
 @router.get("", response_model=SettingsResponse)
 async def get_settings():
-    staking_amount = get_staking_amount()
+    try:
+        staking_amount = get_staking_amount()
+    except ValueError:
+        try:
+            contracts = get_contracts()
+            min_staking_amount = (
+                await contracts.node_staking_contract.get_min_stake_amount()
+            )
+            staking_amount = await to_thread.run_sync(
+                ensure_staking_amount, min_staking_amount
+            )
+        except Exception as e:
+            _logger.warning(
+                "Cannot initialize staking amount from chain: %s", e, exc_info=True
+            )
+            staking_amount = None
     return SettingsResponse(staking_amount=staking_amount)
 
 
