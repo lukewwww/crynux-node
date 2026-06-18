@@ -12,11 +12,47 @@ options = parser.parse_args()
 scipy_hiddenimports = collect_submodules('scipy')
 scipy_datas = collect_data_files('scipy')
 binaries = collect_dynamic_libs('bitsandbytes')
-metadata_datas = (
-    copy_metadata('diffusers', recursive=True)
-    + copy_metadata('transformers', recursive=True)
-    + copy_metadata('pymatting')
-)
+metadata_packages = [
+    ('diffusers', True),
+    ('transformers', True),
+    ('accelerate', False),
+    ('attrs', False),
+    ('bitsandbytes', False),
+    ('compel', False),
+    ('controlnet-aux', False),
+    ('datasets', False),
+    ('einops', False),
+    ('fsspec', False),
+    ('huggingface-hub', False),
+    ('imageio', False),
+    ('jax', False),
+    ('jsonschema', False),
+    ('lazy-loader', False),
+    ('mediapipe', False),
+    ('networkx', False),
+    ('numba', False),
+    ('numpy', False),
+    ('onnxruntime', False),
+    ('pandas', False),
+    ('peft', False),
+    ('pydantic', False),
+    ('pydantic-settings', False),
+    ('pymatting', False),
+    ('rembg', False),
+    ('scipy', False),
+    ('sentencepiece', False),
+    ('sympy', False),
+    ('tiktoken', False),
+    ('torch', False),
+    ('torchaudio', False),
+    ('torchvision', False),
+    ('urllib3', False),
+    ('websockets', False),
+    ('whatthepatch', False),
+]
+metadata_datas = []
+for package_name, recursive in metadata_packages:
+    metadata_datas += copy_metadata(package_name, recursive=recursive)
 
 a = Analysis(
     ['worker/crynux_worker_process.py'],
