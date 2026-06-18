@@ -2,16 +2,18 @@
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_dynamic_libs
+from PyInstaller.utils.hooks import copy_metadata
 
 scipy_hiddenimports = collect_submodules('scipy')
 scipy_datas = collect_data_files('scipy')
 binaries = collect_dynamic_libs('bitsandbytes')
+metadata_datas = copy_metadata('diffusers', recursive=True) + copy_metadata('transformers', recursive=True)
 
 a = Analysis(
     ['worker/crynux_worker_process.py'],
     pathex=[],
     binaries=binaries,
-    datas=scipy_datas,
+    datas=scipy_datas + metadata_datas,
     hiddenimports=[
         "diffusers.pipelines.stable_diffusion_xl.pipeline_output",
         "pkg_resources.extern",

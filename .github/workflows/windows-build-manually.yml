@@ -60,10 +60,10 @@ jobs:
         run: ./build/set-config-files.ps1 ${{ inputs.blockchain }}
 
       - name: Run the build script
-        run: ./build/windows/build.ps1
+        run: ./build/windows/build.ps1 -BLOCKCHAIN ${{ inputs.blockchain }}
 
       - name: upload to temp.sh
         shell: bash
         run: |
-          export FILENAME=crynux-node-lithium-v${{ env.RELEASE_VERSION }}-windows-x64.zip
+          export FILENAME=crynux-node-lithium-v${{ env.RELEASE_VERSION }}-${{ inputs.blockchain }}-windows-x64.zip
           curl -F "file=@build/crynux_node/dist/$FILENAME" https://temp.sh/upload

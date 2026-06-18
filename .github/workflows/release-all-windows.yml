@@ -59,7 +59,7 @@ jobs:
           ./build/set-config-files.ps1 ${{ inputs.blockchain }}
 
       - name: Run the build script
-        run: ./build/windows/build.ps1
+        run: ./build/windows/build.ps1 -BLOCKCHAIN ${{ inputs.blockchain }}
 
       - id: gdrive
         name: Upload to gdrive
@@ -67,7 +67,7 @@ jobs:
         with:
           overrwrite: true
           service-account-json: ${{ secrets.GOOGLE_DRIVE_GSA_CREDENTIALS_BASE64 }}
-          file-path: "build/crynux_node/dist/crynux-node-lithium-v${{ inputs.release_version }}-windows-x64.zip"
+          file-path: "build/crynux_node/dist/crynux-node-lithium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-windows-x64.zip"
           upload-name: "crynux-node-lithium-v${{ inputs.release_version }}-${{ inputs.blockchain }}-windows-x64.zip"
           upload-to-folder-id: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
 
