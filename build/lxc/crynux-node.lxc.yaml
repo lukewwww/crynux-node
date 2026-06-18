@@ -25,7 +25,7 @@ files:
     mode: "0644"
   - generator: copy
     path: /app-source
-    source: .
+    source: LXC_SOURCE_DIR
   - generator: copy
     path: /etc/systemd/network/10-eth0.network
     source: build/lxc/10-eth0.network

@@ -2,6 +2,10 @@
 # Generate a directory that contains the releasing app
 # Example call: .\build\windows\package.ps1
 
+param(
+    [string]$BLOCKCHAIN = ""
+)
+
 $ErrorActionPreference = "Stop"
 
 function Check-ExitCode {
@@ -39,7 +43,11 @@ Copy-Item -Recurse "res" "dist/Crynux Node/res"
 
 # Create the archive file
 $VERSION = "3.0.0"
-$RELEASE_NAME = "crynux-node-lithium-v${VERSION}-windows-x64"
+$BLOCKCHAIN_SUFFIX = ""
+if ($BLOCKCHAIN -ne "") {
+    $BLOCKCHAIN_SUFFIX = "-$BLOCKCHAIN"
+}
+$RELEASE_NAME = "crynux-node-lithium-v${VERSION}${BLOCKCHAIN_SUFFIX}-windows-x64"
 
 Move-Item -Path "dist/Crynux Node" "dist/$RELEASE_NAME"
 
