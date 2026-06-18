@@ -28,12 +28,14 @@ __all__ = [
     "TxOption",
     "get_default_tx_option",
     "get_staking_amount",
+    "ensure_staking_amount",
     "set_staking_amount",
 ]
 
 
 _data_dir: str = ""
 _config_dir: str = "config"
+ETHER_WEI = 10**18
 
 
 def config_file_path():
@@ -247,7 +249,7 @@ class Config(BaseSettings):
 
     resource_dir: str = ""
 
-    staking_amount: int = 400
+    staking_amount: Optional[int] = None
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",
@@ -327,7 +329,17 @@ def get_privkey() -> str:
 
 def get_staking_amount() -> int:
     config = get_config()
+    if config.staking_amount is None:
+        raise ValueError("Staking amount has not been initialized.")
     return config.staking_amount
+
+
+def ensure_staking_amount(min_staking_amount_wei: int) -> int:
+    config = get_config()
+    if config.staking_amount is None:
+        amount = (min_staking_amount_wei + ETHER_WEI - 1) // ETHER_WEI
+        set_staking_amount(amount)
+    return get_staking_amount()
 
 
 def set_staking_amount(amount: int):

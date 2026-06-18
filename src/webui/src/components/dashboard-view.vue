@@ -189,11 +189,11 @@ const taskStatus = reactive({
 
 
 const settings = reactive({
-    staking_amount: 0
+    staking_amount: null
 })
 
 const settingsInModal = reactive({
-    staking_amount: 0,
+    staking_amount: null,
     delegator_share: 0
 })
 
@@ -271,6 +271,11 @@ const isNodeJoined = computed(() => {
 
 const GAS_FEE_MIN_WEI = BigInt(config.gas_fee_min_wei)
 const hasLoadedWalletFundingState = computed(() => hasLoadedAccountBalance.value && hasLoadedNodeStatus.value)
+const hasLoadedStakingAmount = computed(() => typeof settings.staking_amount === 'number')
+const stakingAmountText = computed(() => {
+    if (!hasLoadedStakingAmount.value) return 'Loading...'
+    return `${settings.staking_amount} CNX`
+})
 
 const toEtherValue = (value) => {
     try {
@@ -308,7 +313,7 @@ const startEnough = () => {
 }
 
 const requiredStartTotalCNX = computed(() => {
-    if (typeof settings.staking_amount !== 'number') return '0'
+    if (typeof settings.staking_amount !== 'number') return ''
     const stakingWei = BigInt(settings.staking_amount) * ETHER_WEI
     const totalWei = stakingWei + GAS_FEE_MIN_WEI
     return toEtherValue(totalWei)
@@ -491,6 +496,9 @@ async function updateMinStakingAmount() {
     try {
         const minStakingAmountResp = await settingsAPI.getMinStakingAmount()
         minStakingAmountWei.value = minStakingAmountResp.min_staking_amount
+        if (settingsInModal.staking_amount === null && minStakingAmountCNX.value !== null) {
+            settingsInModal.staking_amount = minStakingAmountCNX.value
+        }
     } catch (e) {
         minStakingAmountLoadError.value = 'Cannot load the minimum staking amount from chain. Please try again later.'
         logger.error('Updating minimum staking amount failed:')
@@ -849,6 +857,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
           ((isNodeStoppedLike || isNodeInitializing) &&
           accountStatus.address !== '' &&
           hasLoadedWalletFundingState &&
+          hasLoadedStakingAmount &&
           !startEnough())
         "
             >
@@ -978,7 +987,7 @@ const tempFilesFormatted = computed(() => formatBytes(systemInfo.disk.temp_files
                         </div>
                         <div style="margin-top: 8px; text-align: left; margin-left: 8px" v-if="isNodeStoppedLike">
                             <a-typography-text type="secondary">
-                                Staking: {{ settings.staking_amount }} CNX
+                                Staking: {{ stakingAmountText }}
                             </a-typography-text>
                             <a-button
                                 type="text"
