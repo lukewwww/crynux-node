@@ -12,7 +12,11 @@ options = parser.parse_args()
 scipy_hiddenimports = collect_submodules('scipy')
 scipy_datas = collect_data_files('scipy')
 binaries = collect_dynamic_libs('bitsandbytes')
-metadata_datas = copy_metadata('diffusers', recursive=True) + copy_metadata('transformers', recursive=True)
+metadata_datas = (
+    copy_metadata('diffusers', recursive=True)
+    + copy_metadata('transformers', recursive=True)
+    + copy_metadata('pymatting')
+)
 
 a = Analysis(
     ['worker/crynux_worker_process.py'],
